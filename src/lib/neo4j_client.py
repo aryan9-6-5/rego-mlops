@@ -1,48 +1,44 @@
 import os
-from typing import Any, Dict, List, Optional
-from neo4j import GraphDatabase, Driver
+from typing import Any
+
 from dotenv import load_dotenv
+from neo4j import Driver, GraphDatabase
 
 load_dotenv()
 
-class Neo4jClient:
-    """
-    Minimal Neo4j client wrapper using the official Python driver.
-    """
-    def __init__(self) -> None:
-        self.uri: str = os.getenv("NEO4J_URI", "")
-        # Use NEO4J_USER as requested, fallback to NEO4J_USERNAME from .env if present
-        self.user: str = os.getenv("NEO4J_USER") or os.getenv("NEO4J_USERNAME", "")
-        self.password: str = os.getenv("NEO4J_PASSWORD", "")
-        self.driver: Optional[Driver] = None
 
-    def connect(self) -> None:
-        """Initialize the Neo4j driver connection."""
-        if not self.driver:
-            self.driver = GraphDatabase.driver(
-                self.uri, 
-                auth=(self.user, self.password)
+class Neo4jClient:
+    """Minimal Neo4j client wrapper using the official Python driver."""
+
+    def __init__(self) -> None:
+        uri = os.getenv("NEO4J_URI")
+        user = os.getenv("NEO4J_USER")
+        password = os.getenv("NEO4J_PASSWORD")
+
+        if not uri or not user or not password:
+            raise ValueError(
+                "NEO4J_URI, NEO4J_USER, and NEO4J_PASSWORD must be set."
             )
+
+        self._driver: Driver = GraphDatabase.driver(
+            uri,
+            auth=(user, password),
+        )
 
     def close(self) -> None:
         """Close the Neo4j driver connection."""
-        if self.driver:
-            self.driver.close()
-            self.driver = None
+        self._driver.close()
 
-    def run_query(self, query: str, params: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
-        """
-        Execute a Cypher query and return results as a list of dictionaries.
-        """
-        if not self.driver:
-            self.connect()
-        
-        if not self.driver:
-            raise ConnectionError("Failed to connect to Neo4j.")
-
-        with self.driver.session() as session:
+    def run_query(
+        self,
+        query: str,
+        params: dict[str, Any] | None = None,
+    ) -> list[dict[str, Any]]:
+        """Execute a Cypher query and return results as dictionaries."""
+        with self._driver.session() as session:
+            session = session
             result = session.run(query, params or {})
             return [record.data() for record in result]
 
-# Singleton instance for easy access
+
 neo4j_client = Neo4jClient()
