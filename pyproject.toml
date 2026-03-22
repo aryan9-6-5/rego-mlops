@@ -1,0 +1,38 @@
+[tool.poetry]
+name = "rego-mlops"
+version = "0.1.0"
+description = "Continuous Regulatory Compliance Reasoning"
+authors = ["AI <ai@example.com>"]
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.11"
+z3-solver = "4.12.6.0"
+fastapi = "^0.111.0"
+uvicorn = "^0.29.0"
+python-dotenv = "^1.0.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.2.0"
+pytest-asyncio = "^0.23.0"
+pytest-cov = "^5.0.0"
+black = "^24.4.0"
+ruff = "^0.4.0"
+mypy = "^1.10.0"
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "TID252"]
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[tool.mypy]
+strict = true
+disallow_untyped_defs = true
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
