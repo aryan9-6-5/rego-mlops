@@ -1,0 +1,18 @@
+name: CT (Continuous Training)
+
+on:
+  workflow_dispatch:
+    inputs:
+      regulation_version:
+        description: 'Regulation version that triggered this CT'
+        required: true
+        type: string
+
+jobs:
+  training:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Training Stub
+        run: |
+          echo "Continuous Training triggered for version: ${{ inputs.regulation_version }}"
+          echo "Actual training logic (Kaggle/MLflow) deferred to Stage 3.4."

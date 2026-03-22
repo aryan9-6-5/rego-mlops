@@ -1,8 +1,37 @@
-.venv/
+# Secrets
 .env
-node_modules/
-__pycache__/
-.mypy_cache/
-.ruff_cache/
-mlruns/
+.env.*
 kaggle.json
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+frontend/node_modules/
+dist/
+build/
+
+# ML / outputs
+mlruns/
+coverage/
+htmlcov/
+.coverage
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Internal process files
+ANTIGRAVITY_PROMPT.md
+system/LLM_INSTRUCTIONS.md
+docs/STATE.md
+docs/PLAN.md
+docs/ISSUES.md
