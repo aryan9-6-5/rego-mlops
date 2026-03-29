@@ -1,9 +1,17 @@
-from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
 import time
 import uuid
+from typing import Any
 
-from .routes import regulations, certificates, pipeline, models, health
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+
+from src.api.routes import (
+    certificates,
+    health,
+    models,
+    pipeline,
+    regulations,
+)
 
 app = FastAPI(title="Rego API", version="0.1.0")
 
@@ -18,7 +26,7 @@ app.add_middleware(
 
 # Request ID & Timing Middleware
 @app.middleware("http")
-async def add_process_time_header(request: Request, call_next):
+async def add_process_time_header(request: Request, call_next: Any) -> Any:
     start_time = time.time()
     request_id = str(uuid.uuid4())
     response = await call_next(request)
