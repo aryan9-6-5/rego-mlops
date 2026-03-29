@@ -1,4 +1,3 @@
-import os
 import sys
 from pathlib import Path
 
@@ -6,14 +5,15 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.append(str(project_root))
 
-from src.lib.neo4j_client import neo4j_client
+from src.lib.neo4j_client import neo4j_client  # noqa: E402
+
 
 def seed_rbi_rules() -> None:
     """
     Seed initial RBI Section 4.1 rules into Neo4j.
     """
     print("Starting Neo4j seed process...")
-    
+
     # RBI Section 4.1: Prohibited geographic proxies (e.g., PIN code)
     # Regulation node
     regulation_query = """
@@ -23,17 +23,18 @@ def seed_rbi_rules() -> None:
         r.status = 'ACTIVE'
     RETURN r
     """
-    
+
     # Rule node
     rule_query = """
     MERGE (rule:Rule {id: 'RBI_DL_4.1'})
     SET rule.title = 'Prohibition of Geographic Proxies',
-        rule.description = 'Lending models must not use geographic proxies such as PIN code for credit decisions.',
+        rule.description = 'Lending models must not use geographic proxies ' +
+                           'such as PIN code for credit decisions.',
         rule.section = '4.1',
         rule.prohibited_features = ['pin_code', 'postal_code']
     RETURN rule
     """
-    
+
     # Relationship
     relation_query = """
     MATCH (r:Regulation {name: 'RBI Master Directions on Digital Lending 2022'})
@@ -66,7 +67,10 @@ def seed_rbi_rules() -> None:
         """
         results = neo4j_client.run_query(verify_query)
         for row in results:
-            print(f"Relation Detected: {row['regulation']} -> {row['rule_id']} ({row['rule_title']})")
+            print(
+                f"Relation Detected: {row['regulation']} -> "
+                f"{row['rule_id']} ({row['rule_title']})"
+            )
 
     except Exception as e:
         print(f"Error during seeding: {e}")
@@ -75,5 +79,7 @@ def seed_rbi_rules() -> None:
         neo4j_client.close()
         print("Neo4j connection closed.")
 
+
 if __name__ == "__main__":
     seed_rbi_rules()
+

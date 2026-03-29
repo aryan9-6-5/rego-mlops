@@ -1,5 +1,5 @@
+import z3  # type: ignore
 from fastapi import APIRouter
-import z3
 
 router = APIRouter(prefix="/health", tags=["health"])
 
