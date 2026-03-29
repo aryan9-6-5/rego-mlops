@@ -24,13 +24,22 @@ async def get_current_user(
             .execute()
         )
         
-        if not response.data:
+        # Type-safe data extraction
+        rows = response.data
+        if not rows or not isinstance(rows, list) or len(rows) == 0:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="User role not found in database."
             )
             
-        user_data["role"] = response.data[0]["role"]
+        role_data = rows[0]
+        if not isinstance(role_data, dict) or "role" not in role_data:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Invalid role data format in database."
+            )
+
+        user_data["role"] = str(role_data["role"])
         return user_data
     except Exception as e:
         raise HTTPException(
