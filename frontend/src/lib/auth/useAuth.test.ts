@@ -34,7 +34,7 @@ describe('useAuth hook', () => {
   });
 
   it('should sign out and clear state', async () => {
-    useAuth.setState({ user: { id: '123' } as any, role: 'ml_engineer' });
+    useAuth.setState({ user: { id: '123' } as never, role: 'ml_engineer' });
     
     await useAuth.getState().signOut();
     
@@ -48,12 +48,19 @@ describe('useAuth hook', () => {
     const mockUser = { id: '123', email: 'test@example.com' };
     const mockSession = { user: mockUser };
     
-    (supabase.auth.getSession as any).mockResolvedValue({ data: { session: mockSession } });
-    (supabase.from as any).mockReturnValue({
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({ 
+      data: { session: mockSession as never }, 
+      error: null 
+    } as never);
+
+    vi.mocked(supabase.from).mockReturnValue({
       select: vi.fn().mockReturnThis(),
       eq: vi.fn().mockReturnThis(),
-      single: vi.fn().mockResolvedValue({ data: { role: 'compliance_officer' }, error: null }),
-    });
+      single: vi.fn().mockResolvedValue({ 
+        data: { role: 'compliance_officer' }, 
+        error: null 
+      }),
+    } as never);
 
     await useAuth.getState().refreshSession();
 
