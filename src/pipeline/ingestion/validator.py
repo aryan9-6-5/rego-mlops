@@ -60,8 +60,11 @@ def _check(formula: str) -> str | None:
     disallowed = sorted({c for c in commands if c not in ALLOWED_COMMANDS})
     if disallowed:
         return f"Formula uses disallowed commands: {', '.join(disallowed)}."
+    # Fresh context per call: one failed parse poisons the shared global
+    # context, making every later (valid) formula fail until restart.
+    ctx = z3.Context()
     try:
-        assertions = z3.parse_smt2_string(formula)
+        assertions = z3.parse_smt2_string(formula, ctx=ctx)
     except z3.Z3Exception as e:
         # Raw Z3 text is for logs only; the CO sees a plain-English reason.
         logger.warning("Z3 parse error detail=%s", str(e).strip()[:200])
@@ -74,7 +77,7 @@ def _check(formula: str) -> str | None:
             return "An assertion is always true, so it constrains nothing."
         if z3.is_false(simplified):
             return "An assertion is always false, so no model can comply."
-    solver = z3.Solver()
+    solver = z3.Solver(ctx=ctx)
     solver.set("timeout", SOLVER_TIMEOUT_MS)
     solver.add(assertions)
     verdict = solver.check()

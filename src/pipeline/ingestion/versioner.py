@@ -26,6 +26,7 @@ SET r.rule_id = $rule_id,
     r.section = $section,
     r.jurisdiction = $jurisdiction,
     r.formal_logic = $formal_logic,
+    r.description = $description,
     r.status = $status,
     r.approved_by = $approved_by,
     r.activated_at = $activated_at
@@ -58,6 +59,7 @@ def write_regulation(
     section: str,
     jurisdiction: str,
     formal_logic: str,
+    description: str | None,
     approved_by: str,
 ) -> WriteResult:
     """Write an approved rule to Neo4j as an active `(:Regulation)` node.
@@ -75,6 +77,7 @@ def write_regulation(
                 "section": section,
                 "jurisdiction": jurisdiction,
                 "formal_logic": formal_logic,
+                "description": description,
                 "status": RegulationStatus.ACTIVE.value,
                 "active": RegulationStatus.ACTIVE.value,
                 "superseded": RegulationStatus.SUPERSEDED.value,

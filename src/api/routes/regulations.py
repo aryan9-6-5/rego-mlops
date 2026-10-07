@@ -4,6 +4,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 
 from src.api.dependencies import require_role
+from src.api.providers import get_graph, get_llm, get_store
 from src.api.schemas.regulation import (
     RegulationCreate,
     RegulationJob,
@@ -21,25 +22,6 @@ router = APIRouter(prefix="/regulations", tags=["regulations"])
 _tracker = service.JobTracker()
 CO_ONLY = Depends(require_role(["compliance_officer"]))
 CO_OR_CTO = Depends(require_role(["compliance_officer", "cto"]))
-
-
-def get_store() -> RegulationStore:
-    from src.lib.supabase_client import supabase_client
-    from src.pipeline.ingestion.store import SupabaseRegulationStore
-
-    return SupabaseRegulationStore(supabase_client.client)
-
-
-def get_llm() -> TextCompleter:
-    from src.lib.llm_client import LLMClient
-
-    return LLMClient()
-
-
-def get_graph() -> GraphClient:
-    from src.lib.neo4j_client import neo4j_client
-
-    return neo4j_client
 
 
 Store = Annotated[RegulationStore, Depends(get_store)]

@@ -37,3 +37,5 @@ docs/PLAN.md
 docs/ISSUES.md
 
 *.txt
+# Model bundles produced by CT / submitted to CI
+artifacts/

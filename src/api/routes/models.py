@@ -3,6 +3,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 
 from src.api.dependencies import require_role
+from src.api.providers import get_graph
 from src.api.schemas.model import ModelLineage, ModelMetadata
 from src.pipeline.cd import lineage
 from src.pipeline.cd.lineage import GraphClient
@@ -10,12 +11,6 @@ from src.pipeline.cd.lineage import GraphClient
 router = APIRouter(prefix="/models", tags=["models"])
 
 ANY_ROLE = Depends(require_role(["compliance_officer", "ml_engineer", "cto"]))
-
-
-def get_graph() -> GraphClient:
-    from src.lib.neo4j_client import neo4j_client
-
-    return neo4j_client
 
 
 @router.get("/", response_model=list[ModelLineage], dependencies=[ANY_ROLE])

@@ -1,18 +1,87 @@
 name: CT (Continuous Training)
 
+# Law drift, not data drift: a new active regulation version triggers retraining.
+# Runs every 5 minutes (GitHub Actions is the only scheduler) or
+# on demand, e.g. from POST /api/pipeline/trigger-ct.
+
 on:
+  schedule:
+    - cron: '*/5 * * * *'
   workflow_dispatch:
     inputs:
       regulation_version:
-        description: 'Regulation version that triggered this CT'
-        required: true
+        description: 'Regulation version to train for (leave empty to check Neo4j for drift)'
+        required: false
         type: string
 
+concurrency:
+  group: ct
+  cancel-in-progress: false
+
+env:
+  NEO4J_URI: ${{ secrets.NEO4J_URI }}
+  NEO4J_USER: ${{ secrets.NEO4J_USER }}
+  NEO4J_PASSWORD: ${{ secrets.NEO4J_PASSWORD }}
+  KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+  KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
+  KAGGLE_TRAIN_DATASET: ${{ secrets.KAGGLE_TRAIN_DATASET }}
+  MLFLOW_TRACKING_URI: file:./mlruns
+  MODEL_ARTIFACT_DIR: artifacts/models
+  SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+  SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+
 jobs:
-  training:
+  detect:
+    runs-on: ubuntu-latest
+    outputs:
+      regulation_version: ${{ steps.drift.outputs.regulation_version }}
+      detected_at: ${{ steps.drift.outputs.detected_at }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install poetry && poetry install
+      - name: Detect regulation drift
+        id: drift
+        env:
+          REQUESTED_VERSION: ${{ inputs.regulation_version }}
+        run: |
+          if [ -n "$REQUESTED_VERSION" ]; then
+            echo "regulation_version=$REQUESTED_VERSION" >> "$GITHUB_OUTPUT"
+            echo "detected_at=" >> "$GITHUB_OUTPUT"
+          else
+            poetry run python -m src.pipeline.ct.drift_detector
+          fi
+
+  train:
+    needs: detect
+    if: needs.detect.outputs.regulation_version != ''
     runs-on: ubuntu-latest
     steps:
-      - name: Training Stub
-        run: |
-          echo "Continuous Training triggered for version: ${{ inputs.regulation_version }}"
-          echo "Actual training logic (Kaggle/MLflow) deferred to Stage 3.4."
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install poetry && poetry install --with ct
+      - name: Retrain on Kaggle and log to MLflow
+        id: train
+        env:
+          REGULATION_VERSION: ${{ needs.detect.outputs.regulation_version }}
+          DETECTED_AT: ${{ needs.detect.outputs.detected_at }}
+        run: >
+          poetry run python -m src.pipeline.ct.trainer
+          --regulation-version "$REGULATION_VERSION"
+          --detected-at "$DETECTED_AT"
+      - name: Run CI compliance gates
+        # Exits non-zero unless every gate passes. There is no bypass.
+        env:
+          MODEL_VERSION: ${{ steps.train.outputs.model_version }}
+        run: poetry run python -m src.pipeline.ci.cli --artifact "$MODEL_VERSION"
+      - name: Upload MLflow runs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mlruns
+          path: mlruns
+          if-no-files-found: ignore

@@ -6,7 +6,8 @@ import Dashboard from "./pages/Dashboard";
 import Unauthorized from "./pages/Unauthorized";
 import RegulationUpload from "./features/compliance-officer/pages/RegulationUpload";
 import ApprovalQueue from "./features/compliance-officer/pages/ApprovalQueue";
-import Pipeline from "./features/ml-engineer/pages/Pipeline";
+import PipelineMonitor from "./features/ml-engineer/pages/PipelineMonitor";
+import ViolationReport from "./features/ml-engineer/pages/ViolationReport";
 import ModelRegistry from "./features/ml-engineer/pages/ModelRegistry";
 import Certificates from "./features/compliance-officer/pages/Certificates";
 
@@ -44,7 +45,15 @@ function App() {
         <Route path="/pipeline" element={
           <ProtectedRoute allowedRoles={['ml_engineer']}>
             <Shell>
-              <Pipeline />
+              <PipelineMonitor />
+            </Shell>
+          </ProtectedRoute>
+        } />
+
+        <Route path="/violation-report" element={
+          <ProtectedRoute allowedRoles={['ml_engineer']}>
+            <Shell>
+              <ViolationReport />
             </Shell>
           </ProtectedRoute>
         } />

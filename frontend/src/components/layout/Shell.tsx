@@ -6,6 +6,7 @@ import {
   FileCheck, 
   ListChecks, 
   Boxes, 
+  ShieldAlert, 
   GitBranch, 
   ShieldCheck, 
   LogOut, 
@@ -46,9 +47,15 @@ export const Shell: React.FC<ShellProps> = ({ children }) => {
       roles: ['compliance_officer']
     },
     { 
-      name: 'Pipeline', 
+      name: 'Pipeline Monitor', 
       href: '/pipeline', 
       icon: GitBranch,
+      roles: ['ml_engineer']
+    },
+    { 
+      name: 'Violation Report', 
+      href: '/violation-report', 
+      icon: ShieldAlert, 
       roles: ['ml_engineer']
     },
     { 

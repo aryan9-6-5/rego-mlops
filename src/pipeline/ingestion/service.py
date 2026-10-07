@@ -112,6 +112,7 @@ def approve_regulation(
         section=row["rule_id"].removeprefix("RBI-"),
         jurisdiction=row["jurisdiction"],
         formal_logic=row["formal_logic"],
+        description=row.get("description"),
         approved_by=approver_id,
     )
     for old in store.list_active_for_rule(row["rule_id"]):

@@ -31,3 +31,9 @@ def test_malformed_formula_is_z3_rejected(formula: str) -> None:
     result = validate(formula)
     assert result.status is RegulationStatus.Z3_REJECTED
     assert result.reason
+
+
+def test_valid_formula_still_validates_after_a_malformed_one() -> None:
+    """Regression: a failed Z3 parse used to poison every later parse."""
+    assert validate("(assert (= y 0))").status is RegulationStatus.Z3_REJECTED
+    assert validate(VALID).status is RegulationStatus.Z3_VALIDATED

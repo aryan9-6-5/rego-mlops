@@ -203,6 +203,15 @@ Tools:  Z3 SMT Solver (symbolic consistency checks vs all active rules)
 Output: PASS → proceed to CD | FAIL → halt + violation report with Z3 counterexample
 ```
 
+**CI/CT conventions (Stages 3.3 and 3.4)**
+- A model is checked from a *bundle* folder under `MODEL_ARTIFACT_DIR`: `profile.json` (`{"weights": {"<feature>_weight": number}}`) and `evaluation.json` (held-out `y_true`, `y_pred`, `baseline_y_pred`, `groups`). A feature missing from the profile counts as weight 0.
+- Rules are SMT-LIB2 (`declare-const` + `assert`) stating the condition a compliant model must meet. Z3 looks for a way the rule can be false under the model's weights: UNSAT proves compliance, SAT gives a counterexample.
+- Gates fail closed: no active rules, an unparseable rule, an UNKNOWN Z3 answer, missing evaluation data, or a crashing gate all count as a violation. The first failure halts the run.
+- `reg_attack` is a boundary-robustness test: each weight a rule mentions is nudged by +/-0.1% and the rule re-proved. Fairness is a demographic-parity gap (max 10 points); regression is F1 not more than 5% below baseline. Both are pure Python.
+- `ci/reporter.py` uses templates, not an LLM (AIRULES Rule 2 forbids LLM calls in `pipeline/ci/`).
+- `ct/trigger.py` dispatches the GitHub Actions workflow; `ct/kaggle_runner.py` drives Kaggle through the `kaggle` CLI. The CT notebook excludes prohibited features (hard zero weight); `ct/constraint_loss.py` holds the PyTorch penalty for a neural-network model.
+- `mlflow` and `kaggle` live in the optional Poetry group `ct` (`poetry install --with ct`). Extra environment variables: `MODEL_ARTIFACT_DIR`, `GITHUB_TOKEN`, `GITHUB_REPOSITORY`, `CT_WORKFLOW_FILE`, `CT_WORKFLOW_REF`, `KAGGLE_USERNAME`, `KAGGLE_KEY`, `KAGGLE_TRAIN_DATASET`.
+
 ### Continuous Deployment (CD)
 ```
 Input:  CI-passed model
