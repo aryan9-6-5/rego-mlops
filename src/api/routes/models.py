@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
@@ -15,7 +15,9 @@ router = APIRouter(prefix="/models", tags=["models"])
 
 ANY_ROLE = Depends(require_role(["compliance_officer", "ml_engineer", "cto"]))
 MLE_OR_CTO = Depends(require_role(["ml_engineer", "cto"]))
-VERSION = Query(min_length=1, max_length=200, pattern=r"^[A-Za-z0-9._-]+$")
+# One Query() per parameter. Sharing a single instance made both parameters read
+# the same query value, so a model was diffed against itself.
+VERSION_PATTERN = r"^[A-Za-z0-9._-]+$"
 
 
 @router.get("/", response_model=list[ModelLineage], dependencies=[ANY_ROLE])
@@ -26,8 +28,12 @@ async def list_models(graph: GraphClient = Depends(get_graph)) -> Any:
 
 @router.get("/diff", response_model=ModelDiff, dependencies=[MLE_OR_CTO])
 async def diff_models(
-    from_version: str = VERSION,
-    to_version: str = VERSION,
+    from_version: Annotated[
+        str, Query(min_length=1, max_length=200, pattern=VERSION_PATTERN)
+    ],
+    to_version: Annotated[
+        str, Query(min_length=1, max_length=200, pattern=VERSION_PATTERN)
+    ],
     graph: GraphClient = Depends(get_graph),
     base_dir: Path = Depends(get_artifact_dir),
 ) -> Any:

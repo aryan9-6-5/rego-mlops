@@ -40,3 +40,7 @@ docs/ISSUES.md
 *.txt
 # Model bundles produced by CT / submitted to CI
 artifacts/
+
+# Playwright output
+frontend/test-results/
+frontend/playwright-report/

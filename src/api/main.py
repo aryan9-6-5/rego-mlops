@@ -1,3 +1,4 @@
+import logging
 import os
 import time
 import uuid
@@ -5,6 +6,8 @@ from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from neo4j.exceptions import DriverError, Neo4jError
 
 from src.api.routes import (
     certificates,
@@ -13,6 +16,8 @@ from src.api.routes import (
     pipeline,
     regulations,
 )
+
+logger = logging.getLogger(__name__)
 
 IS_PRODUCTION = os.environ.get("ENVIRONMENT") == "production"
 
@@ -24,6 +29,20 @@ app = FastAPI(
     redoc_url=None if IS_PRODUCTION else "/redoc",
     openapi_url=None if IS_PRODUCTION else "/openapi.json",
 )
+
+GRAPH_UNAVAILABLE = (
+    "The knowledge graph is temporarily unavailable. Please try again shortly."
+)
+
+
+@app.exception_handler(DriverError)
+@app.exception_handler(Neo4jError)
+async def graph_unavailable(request: Request, exc: Exception) -> JSONResponse:
+    """A Neo4j outage is a 503 with a plain message, not a 500 and not the
+    driver's error text, which can name internal hosts."""
+    logger.error("Neo4j unavailable error=%s", type(exc).__name__)
+    return JSONResponse(status_code=503, content={"detail": GRAPH_UNAVAILABLE})
+
 
 # CORS Middleware
 app.add_middleware(

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { useAuth } from './useAuth';
+import { handleAuthChange, useAuth } from './useAuth';
 import { supabase } from './supabase';
 
 vi.mock('./supabase', () => ({
@@ -68,5 +68,53 @@ describe('useAuth hook', () => {
     expect(state.user).toEqual(mockUser);
     expect(state.role).toBe('compliance_officer');
     expect(state.loading).toBe(false);
+  });
+
+  describe('handleAuthChange', () => {
+    const session = { user: { id: 'u1' } } as never;
+
+    function stubRole(role: string | null) {
+      const single = vi.fn().mockResolvedValue({ data: role ? { role } : null, error: null });
+      const eq = vi.fn(() => ({ single }));
+      const select = vi.fn(() => ({ eq }));
+      vi.mocked(supabase.from).mockReturnValue({ select } as never);
+      return single;
+    }
+
+    it('does not query Supabase inside the callback, which would deadlock supabase-js', () => {
+      const single = stubRole('compliance_officer');
+      handleAuthChange(session);
+      expect(supabase.from).not.toHaveBeenCalled();
+      expect(single).not.toHaveBeenCalled();
+      expect(useAuth.getState().user).toEqual({ id: 'u1' });
+    });
+
+    it('loads the role on a later tick and then marks auth ready', async () => {
+      stubRole('compliance_officer');
+      handleAuthChange(session);
+      await vi.waitFor(() => expect(useAuth.getState().role).toBe('compliance_officer'));
+      expect(useAuth.getState()).toMatchObject({ loading: false, initialized: true });
+    });
+
+    it('still becomes ready when the role lookup fails', async () => {
+      const single = vi.fn().mockRejectedValue(new Error('offline'));
+      vi.mocked(supabase.from).mockReturnValue({
+        select: () => ({ eq: () => ({ single }) }),
+      } as never);
+      handleAuthChange(session);
+      await vi.waitFor(() => expect(useAuth.getState().initialized).toBe(true));
+      expect(useAuth.getState().role).toBeNull();
+    });
+
+    it('clears the user and role on sign-out', () => {
+      useAuth.setState({ user: { id: 'u1' } as never, role: 'cto' });
+      handleAuthChange(null);
+      expect(useAuth.getState()).toMatchObject({
+        user: null,
+        role: null,
+        loading: false,
+        initialized: true,
+      });
+    });
   });
 });

@@ -272,6 +272,12 @@ Error Prevention covers Rego's own deploy path. Someone with Railway access can 
 - Frontend advisories that remain need major upgrades of build tools pinned above (vite, vitest, tailwindcss) and of react-router-dom. None of the vite, vitest or tailwind packages ship to the browser. The dev server now binds to localhost only.
 - Not covered by code: Railway must not expose the database or Neo4j publicly, and the Supabase anon key is public by design, so RLS is the only protection for direct database access. Check both when deploying (Stage 6.4).
 
+**Test tooling (Stage 5)**
+- Python: `pytest` with `pytest-cov`; unit tests sit beside the code, flow tests are in `tests/integration/`. `tests/integration/world.py` is an in-memory Neo4j, Supabase and Railway that behaves like the real ones for the queries this code sends, so whole flows (ingest, approve, run the gates, deploy, certify, tamper) run through the real API code. It fails loudly on a query it does not recognise. Coverage is enforced at 90% (`pyproject.toml`); CI runs `pytest --cov`.
+- Frontend unit tests: `vitest` with `jsdom`, `@testing-library/react`, `@testing-library/jest-dom` and `@testing-library/user-event`. These are the tools the templates in `docs/TESTING.md` use, added to `devDependencies` in Stage 5.
+- End-to-end: `@playwright/test` (listed above) drives the real frontend in the Chrome that is already installed (`channel: 'chrome'`, override with `E2E_BROWSER_CHANNEL`), so no browser is downloaded. The API and Supabase are stubbed in `frontend/tests/e2e/support.ts`. These tests prove the browser behaviour; they do not prove the backend, a real login, or Supabase Realtime.
+- `tests/integration/test_frontend_backend_constants.py` fails if the status constants in `constants.ts` drift from the Pydantic enums or the database enum.
+
 ## 5. Pinned Versions (Lockfile)
 
 These are the approved versions. Do not upgrade without updating this file and re-running full CI.

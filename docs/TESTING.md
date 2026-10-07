@@ -661,6 +661,40 @@ exclude_lines = [
 
 ---
 
+---
+
+## Appendix: QA status after Stage 5
+
+The manual checklist in section 6 is for a person using a real environment. Each line below says what automated evidence exists and what still needs a live run. A box is only ticked in section 6 once someone has done it for real.
+
+**Automated now (in-process API, or the browser against a stubbed API):**
+
+| Checklist item | Evidence |
+|---|---|
+| Paste text, rules reach the approval queue | `test_approval_state_machine.py`, `regulatory_ingestion_flow.spec.ts` |
+| Approve makes a rule active; reject keeps it out | `test_approval_state_machine.py` (approve and reject), E2E (approve) |
+| Violating model halts the gates and names the rule in plain English | `test_ci_gate_failure_halts_pipeline.py`, `ci_gate_violation_display.spec.ts` |
+| Compliant model passes every gate and gets a certificate | `test_certificate_immutability.py` |
+| Download a certificate | `proof_certificate_download.spec.ts` (the file has the hash; the officer's screen does not) |
+| `GET /api/certificates/{id}` returns 200 with a valid HMAC; tampering is 422 | `test_certificate_hmac_tamper.py` |
+| MLE cannot approve (403); no token is 401 | `test_role_enforcement.py`, `test_auth_matrix.py` |
+| CO cannot open `/ml-engineer/*` pages | `ci_gate_violation_display.spec.ts` |
+| Badges show a text label, violation pulses | `ComplianceBadge.test.tsx`, `ComplianceHero.test.tsx`, `GateStatusBadge.test.tsx` |
+| Empty text field shows an inline error | `RegulationUpload.test.tsx`, E2E |
+| LLM failure shows inline, nothing crashes | `test_approval_state_machine.py`, E2E |
+| Neo4j down returns 503 with a clear message, not 500 | `test_api_surface.py` (added in Stage 5; it was a 500 before) |
+| `verify_z3_install.py` exits 0; a proof takes under 100 ms; a counterexample is produced | run in Stage 5: Z3 4.12.6, 77 ms compliant, 31 ms violating |
+
+**Still needs a live environment (not done):**
+- Login as each role and land on the right interface with a real Supabase user (the E2E tests inject a session).
+- An expired JWT returning to the login screen.
+- A real LLM extraction and a real timeout.
+- Real Neo4j (the Cypher has only run against the in-memory stand-in), real Supabase row level security (migration 08), Supabase Realtime updating the status bar, Railway deploys, Kaggle training, GitHub dispatch.
+- A Z3 solve over 2 seconds showing a loading indicator.
+- The WebSocket gate stream in a browser.
+
+The integration tests do not run against test Supabase and Neo4j instances, as the plan for 5.2 describes, because none exist yet. The live checks above cover that gap.
+
 *TESTING.md is FINALIZED.*
 *Every AI tool reads this before writing tests or calling anything "done".*
 *In Rego: the VIOLATION test case is more important than the COMPLIANT test case.*

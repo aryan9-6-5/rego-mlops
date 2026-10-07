@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from './supabase';
-import { User } from '@supabase/supabase-js';
+import type { Session, User } from '@supabase/supabase-js';
 
 interface AuthState {
   user: User | null;
@@ -43,20 +43,37 @@ export const useAuth = create<AuthState>((set) => ({
   },
 }));
 
-// Initialize listener
-supabase.auth.onAuthStateChange(async (_event, session) => {
+/** React to a sign-in or sign-out.
+ *
+ * Do not call Supabase from inside the `onAuthStateChange` callback and wait for
+ * it: supabase-js waits for every callback before `getSession()` can answer, and
+ * a query needs `getSession()` for its token, so the two wait on each other for
+ * good. A signed-in user reloading the page would stay on "Authenticating..."
+ * forever. The role lookup is deferred to a later tick instead.
+ */
+export function handleAuthChange(session: Session | null): void {
   const store = useAuth.getState();
-  if (session) {
-    store.setUser(session.user);
-    const { data } = await supabase
+  if (!session) {
+    store.setUser(null);
+    store.setRole(null);
+    useAuth.setState({ loading: false, initialized: true });
+    return;
+  }
+  store.setUser(session.user);
+  setTimeout(() => {
+    void supabase
       .from('users')
       .select('role')
       .eq('id', session.user.id)
-      .single();
-    if (data) store.setRole(data.role);
-  } else {
-    store.setUser(null);
-    store.setRole(null);
-  }
-  useAuth.setState({ loading: false, initialized: true });
-});
+      .single()
+      .then(({ data }) => {
+        if (data) useAuth.getState().setRole(data.role);
+      })
+      .then(
+        () => useAuth.setState({ loading: false, initialized: true }),
+        () => useAuth.setState({ loading: false, initialized: true }),
+      );
+  }, 0);
+}
+
+supabase.auth.onAuthStateChange((_event, session) => handleAuthChange(session));

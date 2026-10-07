@@ -3,7 +3,7 @@ export function regulationLabel(ruleId: string): string {
   return ruleId.replace(/^RBI-/, 'RBI section ');
 }
 
-const VERSION_STAMP = /(\d{4})(\d{2})(\d{2})T\d{6}Z$/;
+const VERSION_STAMP = /(\d{4})(\d{2})(\d{2})T\d{6}(?:\d{6})?Z$/;
 
 /** `RBI-4.1-20261007T120000Z` -> `7 Oct 2026`, or null if there is no timestamp. */
 export function versionDate(versionId: string): string | null {

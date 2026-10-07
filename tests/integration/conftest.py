@@ -47,3 +47,46 @@ def client(tmp_path: Path) -> Iterator[TestClient]:
         app.dependency_overrides.clear()
         rate_limit.regulation_limiter.reset()
         rate_limit.verify_limiter.reset()
+
+
+# ---- stateful world for the flow tests -------------------------------------
+
+from src.api.routes import pipeline as pipeline_routes  # noqa: E402
+from src.pipeline.ci.run_registry import RunRegistry  # noqa: E402
+from tests.integration.world import World  # noqa: E402
+
+CO_HEADERS = {"Authorization": "Bearer co-token"}
+MLE_HEADERS = {"Authorization": "Bearer mle-token"}
+CTO_HEADERS = {"Authorization": "Bearer cto-token"}
+
+
+@pytest.fixture
+def world(tmp_path: Path) -> World:
+    return World(tmp_path)
+
+
+@pytest.fixture
+def api(world: World) -> Iterator[TestClient]:
+    """The real API wired to the world, so flows run end to end."""
+    app.dependency_overrides.update(
+        {
+            providers.get_graph: lambda: world.graph,
+            providers.get_store: lambda: world.regulations,
+            providers.get_llm: lambda: world.llm,
+            providers.get_event_store: lambda: world.events,
+            providers.get_ci_reader: lambda: world.events,
+            providers.get_cert_store: lambda: world.certificates,
+            providers.get_deployer: lambda: world.deployer,
+            providers.get_cert_secret: lambda: SECRET,
+            providers.get_artifact_dir: lambda: world.artifact_dir,
+        }
+    )
+    pipeline_routes._registry = RunRegistry()
+    rate_limit.regulation_limiter.reset()
+    rate_limit.verify_limiter.reset()
+    try:
+        yield TestClient(app, follow_redirects=False)
+    finally:
+        app.dependency_overrides.clear()
+        rate_limit.regulation_limiter.reset()
+        rate_limit.verify_limiter.reset()

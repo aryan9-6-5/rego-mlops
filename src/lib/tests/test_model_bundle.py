@@ -69,3 +69,33 @@ def test_rejects_bad_evaluation(tmp_path: Path, bad: object) -> None:
     bundle(tmp_path, profile={"weights": {"a_weight": 1}}, evaluation=bad)
     with pytest.raises(SubmissionError):
         load_submission("m1", tmp_path)
+
+
+def test_an_unreadable_or_non_json_profile_is_a_clear_error(tmp_path: Path) -> None:
+    (tmp_path / "m1").mkdir()
+    (tmp_path / "m1" / "profile.json").write_text("{not json")
+    with pytest.raises(SubmissionError, match="profile.json"):
+        load_submission("m1", tmp_path)
+
+
+def test_an_evaluation_list_that_is_not_a_list_is_rejected(tmp_path: Path) -> None:
+    bundle(tmp_path, profile={"weights": {"a_weight": 1}}, evaluation={**EVAL, "y_true": "10"})
+    with pytest.raises(SubmissionError, match="must be a list"):
+        load_submission("m1", tmp_path)
+
+
+def test_the_bundle_hash_changes_when_any_file_changes(tmp_path: Path) -> None:
+    from src.lib.model_bundle import bundle_hash
+
+    bundle(tmp_path, profile={"weights": {"a_weight": 1}}, evaluation=EVAL)
+    first = bundle_hash("m1", tmp_path)
+    assert first == bundle_hash("m1", tmp_path)
+    (tmp_path / "m1" / "profile.json").write_text(json.dumps({"weights": {"a_weight": 2}}))
+    assert bundle_hash("m1", tmp_path) != first
+
+
+def test_the_bundle_hash_refuses_paths_outside_the_base_dir(tmp_path: Path) -> None:
+    from src.lib.model_bundle import bundle_hash
+
+    with pytest.raises(SubmissionError):
+        bundle_hash("../elsewhere", tmp_path)

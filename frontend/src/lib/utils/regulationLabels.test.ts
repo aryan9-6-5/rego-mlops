@@ -12,6 +12,7 @@ describe('regulation labels', () => {
 
   it('reads the date out of a version id', () => {
     expect(versionDate('RBI-4.1-20261007T120000Z')).toBe('7 Oct 2026');
+    expect(versionDate('RBI-4.1-20261007T120000123456Z')).toBe('7 Oct 2026');
     expect(versionDate('RBI-4.1')).toBeNull();
   });
 

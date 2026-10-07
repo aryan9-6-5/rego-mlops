@@ -42,8 +42,10 @@ RETURN r.version_id AS version_id, collect(old.version_id) AS superseded
 
 
 def new_version(now: datetime | None = None) -> str:
-    """UTC timestamp used as the `version` column."""
-    return (now or datetime.now(timezone.utc)).strftime("%Y%m%dT%H%M%SZ")
+    """UTC timestamp used as the `version` column. Microsecond resolution, so
+    two versions of the same rule never get the same id (a repeat would
+    overwrite the earlier graph node and break UNIQUE (rule_id, version))."""
+    return (now or datetime.now(timezone.utc)).strftime("%Y%m%dT%H%M%S%fZ")
 
 
 def make_version_id(rule_id: str, version: str) -> str:
