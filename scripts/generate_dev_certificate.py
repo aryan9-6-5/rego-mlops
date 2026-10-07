@@ -9,7 +9,7 @@ database, no pipeline run.
 `--insert` goes through the same write-once path as a real deployment
 (pipeline/cd/certificate.py) and is refused when ENVIRONMENT=production.
 The model version is always `dev-<timestamp>` so it cannot be mistaken for a
-real one. Needs PROOF_CERT_SECRET.
+real one. Needs PROOF_CERT_SECRET (at least 32 bytes).
 """
 
 import argparse
@@ -35,11 +35,7 @@ class MemoryStore:
         self.row: dict[str, Any] = {}
 
     def insert(self, row: dict[str, Any]) -> dict[str, Any]:
-        self.row = {
-            **row,
-            "id": "00000000-0000-0000-0000-000000000000",
-            "created_at": datetime.now(timezone.utc).isoformat(),
-        }
+        self.row = {**row, "created_at": datetime.now(timezone.utc).isoformat()}
         return dict(self.row)
 
     def get(self, certificate_id: str) -> dict[str, Any] | None:

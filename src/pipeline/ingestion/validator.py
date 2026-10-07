@@ -35,7 +35,7 @@ def _top_level_commands(formula: str) -> list[str] | None:
     commands: list[str] = []
     for match in re.finditer(r"\(\s*([^\s()]+)|[()]", formula):
         token = match.group(0)
-        if token == ")":
+        if token == ")":  # nosec B105
             depth -= 1
             if depth < 0:
                 return None

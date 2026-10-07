@@ -8,6 +8,7 @@ from src.pipeline.cd.certificate import (
     CertificateNotFoundError,
     DuplicateCertificateError,
     TamperedCertificateError,
+    WeakSecretError,
     compute_proof_hash,
     issue_certificate,
     list_certificates,
@@ -15,7 +16,7 @@ from src.pipeline.cd.certificate import (
     verify_proof_hash,
 )
 
-SECRET = "test-secret"
+SECRET = "test-secret-" + "x" * 32
 REG = CertificateRegulation(
     version_id="RBI-4.1-x", rule_id="RBI-4.1", formula_hash="ab"
 )
@@ -33,7 +34,7 @@ class MemoryStore:
     def insert(self, row: dict[str, Any]) -> dict[str, Any]:
         if any(r["proof_hash"] == row["proof_hash"] for r in self.rows.values()):
             raise DuplicateCertificateError(row["model_version"])
-        stored = {**row, "id": f"cert-{len(self.rows) + 1}", "created_at": None}
+        stored = {**row, "created_at": None}
         self.rows[stored["id"]] = stored
         return dict(stored)
 
@@ -94,21 +95,26 @@ def test_new_regulation_version_allows_a_new_certificate() -> None:
         ("model_version", "v-other"),
         ("regulation_versions", []),
         ("hmac_signature", "00"),
+        ("id", "11111111-1111-1111-1111-111111111111"),
     ],
 )
 def test_tampering_with_any_field_is_detected(field: str, value: Any) -> None:
     store = MemoryStore()
     cert = issue(store)
     store.rows[cert.id][field] = value
+    lookup = cert.id
+    if field == "id":  # the row is also moved to its new id
+        lookup = value
+        store.rows[lookup] = store.rows.pop(cert.id)
     with pytest.raises(TamperedCertificateError):
-        read_certificate(store, SECRET, cert.id)
+        read_certificate(store, SECRET, lookup)
 
 
 def test_wrong_secret_fails_verification() -> None:
     store = MemoryStore()
     cert = issue(store)
     with pytest.raises(TamperedCertificateError):
-        read_certificate(store, "another-secret", cert.id)
+        read_certificate(store, "another-secret-" + "y" * 32, cert.id)
 
 
 def test_missing_certificate() -> None:
@@ -157,3 +163,27 @@ def test_verify_rejects_a_tampered_certificate_even_with_its_own_hash() -> None:
 def test_verify_unknown_certificate() -> None:
     result = verify_proof_hash(MemoryStore(), SECRET, "nope", "ab")
     assert not result.valid
+
+
+def test_a_valid_row_copied_under_a_new_id_does_not_verify() -> None:
+    store = MemoryStore()
+    cert = issue(store)
+    store.rows["copy-id"] = {**store.rows[cert.id], "id": "copy-id"}
+    with pytest.raises(TamperedCertificateError):
+        read_certificate(store, SECRET, "copy-id")
+
+
+@pytest.mark.parametrize("secret", ["", "short", "x" * 31])
+def test_a_secret_under_32_bytes_is_refused(secret: str) -> None:
+    with pytest.raises(WeakSecretError):
+        issue_certificate(
+            MemoryStore(),
+            secret,
+            model_version="v1",
+            bundle_digest="b",
+            regulations=[REG],
+        )
+    store = MemoryStore()
+    cert = issue(store)
+    with pytest.raises(WeakSecretError):
+        read_certificate(store, secret, cert.id)

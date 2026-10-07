@@ -2,6 +2,7 @@ import hashlib
 import hmac
 import json
 import logging
+import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any, Protocol
@@ -58,25 +59,50 @@ def compute_proof_hash(
     return hashlib.sha256(_canonical(payload)).hexdigest()
 
 
+MIN_SECRET_BYTES = 32
+
+
+class WeakSecretError(Exception):
+    """PROOF_CERT_SECRET is shorter than 32 bytes."""
+
+
+def _require_strong_secret(secret: str) -> bytes:
+    key = secret.encode()
+    if len(key) < MIN_SECRET_BYTES:
+        raise WeakSecretError(
+            f"PROOF_CERT_SECRET must be at least {MIN_SECRET_BYTES} bytes."
+        )
+    return key
+
+
 def sign(
     secret: str,
+    certificate_id: str,
     model_version: str,
     regulation_versions: Sequence[dict[str, Any]],
     proof_hash: str,
 ) -> str:
+    """HMAC over the certificate id, model version, regulation versions and proof
+    hash. Binding the id stops a valid row being copied under a new id."""
+    key = _require_strong_secret(secret)
     message = _canonical(
         {
+            "id": certificate_id,
             "model_version": model_version,
             "regulation_versions": list(regulation_versions),
             "proof_hash": proof_hash,
         }
     )
-    return hmac.new(secret.encode(), message, hashlib.sha256).hexdigest()
+    return hmac.new(key, message, hashlib.sha256).hexdigest()
 
 
 def signature_is_valid(secret: str, row: dict[str, Any]) -> bool:
     expected = sign(
-        secret, row["model_version"], row["regulation_versions"], row["proof_hash"]
+        secret,
+        str(row["id"]),
+        row["model_version"],
+        row["regulation_versions"],
+        row["proof_hash"],
     )
     return hmac.compare_digest(expected, str(row["hmac_signature"]))
 
@@ -106,12 +132,16 @@ def issue_certificate(
 ."""
     proof_hash = compute_proof_hash(model_version, bundle_digest, regulations)
     versions = [r.model_dump() for r in regulations]
+    certificate_id = str(uuid.uuid4())
     row = store.insert(
         {
+            "id": certificate_id,
             "model_version": model_version,
             "regulation_versions": versions,
             "proof_hash": proof_hash,
-            "hmac_signature": sign(secret, model_version, versions, proof_hash),
+            "hmac_signature": sign(
+                secret, certificate_id, model_version, versions, proof_hash
+            ),
         }
     )
     logger.info(

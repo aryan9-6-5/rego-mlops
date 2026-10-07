@@ -25,7 +25,7 @@ env:
   KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
   KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
   KAGGLE_TRAIN_DATASET: ${{ secrets.KAGGLE_TRAIN_DATASET }}
-  MLFLOW_TRACKING_URI: file:./mlruns
+  MLFLOW_TRACKING_URI: sqlite:///mlflow.db
   MODEL_ARTIFACT_DIR: artifacts/models
   SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
   SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
@@ -82,6 +82,8 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: mlruns
-          path: mlruns
+          name: mlflow
+          path: |
+            mlflow.db
+            mlruns
           if-no-files-found: ignore

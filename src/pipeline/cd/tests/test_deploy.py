@@ -31,7 +31,7 @@ NEW_RULE = ActiveRule(
 OLD_VERSION_REPLY = {"data": {"variables": {"MODEL_VERSION": "old"}}}
 GATES = ["symbolic_check", "reg_attack", "fairness_check", "regression"]
 ALL_PASS = dict.fromkeys(GATES, "compliant")
-SECRET = "s3cret"
+SECRET = "s3cret-" + "x" * 32
 
 
 def rule_row(rule: ActiveRule) -> dict[str, Any]:

@@ -13,5 +13,5 @@ async def z3_health_check() -> dict[str, str]:
     try:
         ver = z3.get_version_string()
         return {"status": "ok", "z3_version": ver}
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
+    except Exception:
+        return {"status": "error"}

@@ -1,3 +1,4 @@
+import os
 import time
 import uuid
 from typing import Any
@@ -13,7 +14,16 @@ from src.api.routes import (
     regulations,
 )
 
-app = FastAPI(title="Rego API", version="0.1.0")
+IS_PRODUCTION = os.environ.get("ENVIRONMENT") == "production"
+
+# The API schema is not public in production.
+app = FastAPI(
+    title="Rego API",
+    version="0.1.0",
+    docs_url=None if IS_PRODUCTION else "/docs",
+    redoc_url=None if IS_PRODUCTION else "/redoc",
+    openapi_url=None if IS_PRODUCTION else "/openapi.json",
+)
 
 # CORS Middleware
 app.add_middleware(

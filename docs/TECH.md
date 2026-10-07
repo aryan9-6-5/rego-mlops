@@ -29,7 +29,7 @@ Three non-negotiables that shaped every decision:
 | **ML Framework** | PyTorch | `2.2.x` | Standard for research-grade models. HuggingFace ecosystem |
 | **Model Hub** | HuggingFace Transformers | `4.40.x` | Pre-trained regulatory NLP models, model hosting (free tier) |
 | **Pipeline Orchestration** | GitHub Actions | — | Free tier, tight Git integration, no infra to manage for MVP |
-| **API Backend** | FastAPI | `0.111.x` | Async, auto-generates OpenAPI docs (Swagger), Python-native |
+| **API Backend** | FastAPI | `0.142.x` | Async, auto-generates OpenAPI docs (Swagger), Python-native |
 | **Frontend** | React | `18.x` | Two separate interfaces on one API. Drag-and-drop support. Real-time updates via WebSocket |
 | **Knowledge Graph** | Neo4j Aura | Free tier | Regulatory version lineage. Law nodes ↔ Model nodes ↔ Proof nodes |
 | **Database** | Supabase (PostgreSQL) | latest | Auth + structured data + real-time subscriptions. Free tier |
@@ -261,38 +261,49 @@ Graph:    Neo4j Aura (lineage queries — "which law was this model compliant wi
 
 Error Prevention covers Rego's own deploy path. Someone with Railway access can still redeploy a service by hand outside Rego.
 
+**Security conventions (Stage 4)**
+- Missing, malformed or unknown credentials are always a 401 with the same body and no detail. A signed-in user with the wrong role gets a 403. `tests/integration/test_auth_matrix.py` lists every route with the roles allowed and fails if a route is added without an entry.
+- `POST /regulations` is limited to 10 requests a minute per signed-in user and `POST /certificates/verify` to 30 a minute per client address (`src/api/rate_limit.py`, in-process, so single instance). The limit runs after authentication so it is keyed on a real user. It is a dependency, not middleware, because middleware cannot know the user without authenticating twice.
+- The certificate HMAC covers the certificate id, model version, regulation versions and proof hash. `PROOF_CERT_SECRET` must be at least 32 bytes; shorter is refused when signing and when verifying.
+- The regulation `section` is limited to letters, digits and `. ( ) _ -` because it reaches the LLM prompt. The text is stripped of HTML tags and control characters and capped at 50,000 characters.
+- Row level security (`supabase/migrations/08_tighten_rls.sql`): the anon role has no table access; signed-in staff can read only; the API (service key) does all writes; certificates cannot be updated or deleted by any role, including the service role. Auditors use the verify endpoint, not the database. The migration has not been run against a real Supabase project; test each role through PostgREST after applying it.
+- No applicant PII exists in the code or database: a test scans every log call for PII and credential words, `pipeline_events` stores model-level columns only, and the training notebook refuses personal data columns or unhashed id columns.
+- Dependencies: CI runs `bandit` (medium and above), `scripts/audit_lock.py` (all groups in `poetry.lock`, via `pip-audit`) and `npm audit --omit=dev --audit-level=high`. `bandit` and `pip-audit` are dev tools added in Stage 4; `pip-audit` replaces `safety`, which now needs an account. Advisories we accept are listed with reasons in `scripts/audit_lock.py`.
+- Frontend advisories that remain need major upgrades of build tools pinned above (vite, vitest, tailwindcss) and of react-router-dom. None of the vite, vitest or tailwind packages ship to the browser. The dev server now binds to localhost only.
+- Not covered by code: Railway must not expose the database or Neo4j publicly, and the Supabase anon key is public by design, so RLS is the only protection for direct database access. Check both when deploying (Stage 6.4).
+
 ## 5. Pinned Versions (Lockfile)
 
 These are the approved versions. Do not upgrade without updating this file and re-running full CI.
 
 ```toml
-# pyproject.toml — key dependencies
+# pyproject.toml - every direct dependency is pinned exactly (Stage 4.5)
 [tool.poetry.dependencies]
 python = "^3.11"
-z3-solver = "4.12.6.0"          # PINNED — never auto-upgrade
-fastapi = "^0.111.0"
-uvicorn = "^0.29.0"
-torch = "^2.2.0"
-transformers = "^4.40.0"
-mlflow = "^2.12.0"
-dvc = "^3.49.0"
-evidently = "^0.4.22"
-neo4j = "^5.19.0"               # Neo4j Python driver
-supabase = "^2.4.0"
-openai = "^1.25.0"              # OpenRouter uses OpenAI-compatible SDK
-kaggle = "^1.6.0"               # Kaggle API — CT retraining trigger
-httpx = "^0.27.0"
-pydantic = "^2.7.0"
-python-dotenv = "^1.0.0"
-poetry-dynamic-versioning = "^1.3.0"
+z3-solver = "4.12.6.0"
+fastapi = "0.142.2"
+uvicorn = "0.29.0"
+python-dotenv = "1.2.4"
+neo4j = "5.28.7"
+supabase = "2.32.0"
+openai = "1.109.1"
+pydantic = "2.13.5"
+httpx = "0.27.2"
 
-[tool.poetry.dev-dependencies]
-pytest = "^8.2.0"
-pytest-asyncio = "^0.23.0"
-pytest-cov = "^5.0.0"
-black = "^24.4.0"
-ruff = "^0.4.0"
-mypy = "^1.10.0"
+[tool.poetry.group.dev.dependencies]
+pytest = "9.0.3"
+pytest-asyncio = "1.4.0"
+pytest-cov = "5.0.0"
+black = "26.3.1"
+ruff = "0.4.10"
+bandit = "1.9.4"
+pip-audit = "2.10.1"
+mypy = "1.20.2"
+
+# optional group: poetry install --with ct
+[tool.poetry.group.ct.dependencies]
+mlflow = "3.15.0"
+kaggle = "1.8.4"
 ```
 
 ```json

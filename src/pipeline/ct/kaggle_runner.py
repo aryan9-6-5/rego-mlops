@@ -2,7 +2,9 @@ import json
 import logging
 import os
 import shutil
-import subprocess
+
+# The only subprocess use: the fixed kaggle CLI, never a shell.
+import subprocess  # nosec B404
 import tempfile
 import time
 from collections.abc import Callable
@@ -23,7 +25,8 @@ class KaggleError(Exception):
 def cli_runner(args: list[str]) -> str:
     """Run the `kaggle` CLI (credentials come from KAGGLE_USERNAME / KAGGLE_KEY)."""
     try:
-        done = subprocess.run(
+        # Fixed executable, arguments built from our own config, no shell.
+        done = subprocess.run(  # nosec B603 B607
             ["kaggle", *args],
             capture_output=True,
             text=True,

@@ -38,7 +38,9 @@ class RuleLogic(BaseModel):
 class RegulationCreate(BaseModel):
     """Regulatory text submitted by a compliance officer."""
 
-    section: str = Field(min_length=1, max_length=64)
+    # Letters, digits and . ( ) _ - only: the section reaches the LLM prompt and
+    # becomes part of the rule ID, so it must not carry free text.
+    section: str = Field(pattern=r"^[A-Za-z0-9._()-]{1,64}$")
     content: str = Field(min_length=1, max_length=MAX_REGULATORY_TEXT_CHARS)
     jurisdiction: str = Field(default="India", max_length=100)
 

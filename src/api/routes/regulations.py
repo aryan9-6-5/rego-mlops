@@ -5,6 +5,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 
 from src.api.dependencies import require_role
 from src.api.providers import get_graph, get_llm, get_store
+from src.api.rate_limit import limit_regulations
 from src.api.schemas.regulation import (
     RegulationCreate,
     RegulationJob,
@@ -40,6 +41,7 @@ async def create_regulation(
     llm: Annotated[TextCompleter, Depends(get_llm)],
     _user: Annotated[dict[str, Any], CO_ONLY],
 ) -> Any:
+    limit_regulations(_user)
     job_id = str(uuid.uuid4())
     background.add_task(
         service.run_ingestion_job,

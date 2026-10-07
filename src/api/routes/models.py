@@ -50,7 +50,7 @@ async def get_model_lineage(
     return result
 
 
-@router.post("/")
+@router.post("/", dependencies=[Depends(require_role(["ml_engineer"]))])
 async def register_model(metadata: ModelMetadata) -> Any:
     """Register metadata for a new model version."""
     return {"status": "registered", "name": metadata.name, "version": metadata.version}

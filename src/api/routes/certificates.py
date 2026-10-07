@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from src.api.dependencies import require_role
 from src.api.providers import get_cert_secret, get_cert_store
+from src.api.rate_limit import limit_verify
 from src.api.schemas.certificate import (
     CertificateRead,
     ProofCertificate,
@@ -29,13 +30,15 @@ async def list_certificates(store: Store, secret: Secret) -> Any:
     return certificate.list_certificates(store, secret)
 
 
-@router.post("/verify", response_model=VerifyResponse)
+@router.post(
+    "/verify", response_model=VerifyResponse, dependencies=[Depends(limit_verify)]
+)
 async def verify_certificate(
     body: VerifyRequest, store: Store, secret: Secret
 ) -> Any:
     """Public: lets an auditor check a certificate hash without an account
-    (PLAN.md 3.6). Reveals only whether the hash is valid. Rate limiting for
-    this route is planned for Stage 4.6."""
+    (PLAN.md 3.6). Reveals only whether the hash is valid. Limited to 30
+    requests a minute per client address."""
     return certificate.verify_proof_hash(
         store, secret, body.cert_id, body.proof_hash
     )

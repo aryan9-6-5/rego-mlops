@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 
 import openai
 from dotenv import load_dotenv
-from z3 import And, Bool, Not, Real, Solver, sat
+from z3 import And, Not, Real, Solver, sat
 
 
 def extract_key_legal_terms(text):
