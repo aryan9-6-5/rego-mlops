@@ -1,12 +1,15 @@
 name: CT (Continuous Training)
 
 # Law drift, not data drift: a new active regulation version triggers retraining.
-# Runs every 5 minutes (GitHub Actions is the only scheduler) or
-# on demand, e.g. from POST /api/pipeline/trigger-ct.
+# Meant to run every 5 minutes (GitHub Actions is the only scheduler); the
+# schedule is paused for now. It can be started on demand, for example from
+# POST /api/pipeline/trigger-ct.
 
 on:
-  schedule:
-    - cron: '*/5 * * * *'
+  # Paused until the repository secrets below are set (see docs/DEPLOY.md).
+  # Restore these two lines to run every 5 minutes.
+  # schedule:
+  #   - cron: '*/5 * * * *'
   workflow_dispatch:
     inputs:
       regulation_version:

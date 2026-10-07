@@ -223,7 +223,7 @@ All routes are under `/api`, except the health checks, which are also at `/healt
 |:---|:---|:---|
 | `ci.yml` | every push and pull request to main | Jobs: Python lint (ruff) and types (mypy); Python tests with a 90 percent coverage gate; frontend lint and unit tests; browser tests; security (bandit, a dependency audit of `poetry.lock`, and `npm audit`) |
 | `cd.yml` | after CI succeeds on main | Placeholder. Deployment happens through the API, not this workflow |
-| `ct.yml` | every 5 minutes, or manually with a regulation version | Detects a new active regulation version, retrains on Kaggle with the prohibited features excluded, logs to MLflow, then runs the CI gates and fails if any gate fails |
+| `ct.yml` | manually with a regulation version (the 5 minute schedule is paused until the secrets are set) | Detects a new active regulation version, retrains on Kaggle with the prohibited features excluded, logs to MLflow, then runs the CI gates and fails if any gate fails |
 
 ## Security
 
