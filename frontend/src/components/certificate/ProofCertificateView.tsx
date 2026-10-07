@@ -1,17 +1,19 @@
 import React, { useState } from 'react';
 import { downloadCertificate } from '@/lib/api/certificates';
-import { regulationLabel, type Certificate } from '@/lib/api/certificateHelpers';
+import type { Certificate } from '@/lib/api/certificateHelpers';
+import { regulationLabel, regulationVersionLabel } from '@/lib/utils/regulationLabels';
 
 interface Props {
   certificate: Certificate;
-  /** The ML engineer sees the full hash. Compliance officers do not (AIRULES
-   * Rule 38), but can still copy it to the clipboard to give to an auditor. */
-  showProofHash: boolean;
+  /** The ML engineer's view shows version ids, the full proof hash and the Z3
+   * footer. The compliance officer's view is plain English with no hash on
+   * screen; they can still copy it for an auditor. */
+  technicalView: boolean;
 }
 
 type CopyState = 'idle' | 'copied' | 'failed';
 
-export const ProofCertificateView: React.FC<Props> = ({ certificate, showProofHash }) => {
+export const ProofCertificateView: React.FC<Props> = ({ certificate, technicalView }) => {
   const [copy, setCopy] = useState<CopyState>('idle');
 
   const copyHash = async () => {
@@ -41,16 +43,18 @@ export const ProofCertificateView: React.FC<Props> = ({ certificate, showProofHa
         <ul className="mt-1 space-y-1">
           {certificate.regulation_versions.map((reg) => (
             <li key={reg.version_id} className="text-slate-100">
-              {regulationLabel(reg.rule_id)}
-              <code className="ml-2 rounded bg-indigo-950 px-1.5 py-0.5 font-mono text-xs text-indigo-300">
-                {reg.version_id}
-              </code>
+              {technicalView ? regulationLabel(reg.rule_id) : regulationVersionLabel(reg.rule_id, reg.version_id)}
+              {technicalView && (
+                <code className="ml-2 rounded bg-indigo-950 px-1.5 py-0.5 font-mono text-xs text-indigo-300">
+                  {reg.version_id}
+                </code>
+              )}
             </li>
           ))}
         </ul>
       </div>
 
-      {showProofHash && (
+      {technicalView && (
         <div>
           <p className="text-sm uppercase tracking-wide text-indigo-300">Z3 proof hash</p>
           <code className="mt-1 block break-all font-mono text-xs text-slate-200">
@@ -85,7 +89,7 @@ export const ProofCertificateView: React.FC<Props> = ({ certificate, showProofHa
       </div>
 
       <footer className="border-t border-indigo-900 pt-3 text-sm text-indigo-300">
-        Issued {issued}. Verified by Z3 SMT Solver.
+        Issued {issued}. {technicalView ? 'Verified by Z3 SMT Solver.' : 'Checked automatically against every active rule.'}
       </footer>
     </article>
   );

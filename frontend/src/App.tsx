@@ -8,6 +8,7 @@ import RegulationUpload from "./features/compliance-officer/pages/RegulationUplo
 import ApprovalQueue from "./features/compliance-officer/pages/ApprovalQueue";
 import PipelineMonitor from "./features/ml-engineer/pages/PipelineMonitor";
 import ViolationReport from "./features/ml-engineer/pages/ViolationReport";
+import ModelDiff from "./features/ml-engineer/pages/ModelDiff";
 import ModelRegistry from "./features/ml-engineer/pages/ModelRegistry";
 import Certificates from "./features/compliance-officer/pages/Certificates";
 
@@ -62,6 +63,14 @@ function App() {
           <ProtectedRoute allowedRoles={['ml_engineer']}>
             <Shell>
               <ModelRegistry />
+            </Shell>
+          </ProtectedRoute>
+        } />
+
+        <Route path="/model-diff" element={
+          <ProtectedRoute allowedRoles={['ml_engineer']}>
+            <Shell>
+              <ModelDiff />
             </Shell>
           </ProtectedRoute>
         } />

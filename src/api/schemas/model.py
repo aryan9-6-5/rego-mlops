@@ -32,3 +32,23 @@ class ModelLineage(BaseModel):
     model_version: str
     created_at: str | None = None
     regulation_versions: list[RegulationVersionRef]
+
+
+class FeatureChange(BaseModel):
+    """One feature whose use differs between two model versions."""
+
+    model_config = ConfigDict(frozen=True)
+
+    feature: str
+    kind: str  # "added" | "removed" | "changed"
+    before: float | None = None
+    after: float | None = None
+    affects_rules: list[str] = []
+
+
+class ModelDiff(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    from_version: str
+    to_version: str
+    changes: list[FeatureChange]

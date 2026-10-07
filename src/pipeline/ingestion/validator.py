@@ -49,17 +49,17 @@ def _top_level_commands(formula: str) -> list[str] | None:
 def _check(formula: str) -> str | None:
     """Return a rejection reason, or None if the formula is well-formed."""
     if len(formula) > MAX_FORMULA_CHARS:
-        return f"Formula exceeds {MAX_FORMULA_CHARS} characters."
+        return "The rule is too long to be valid."
     if _FORBIDDEN_CHARS.search(formula):
-        return "Formula contains quoted symbols, strings or comments."
+        return "The rule contains characters that are not allowed."
     commands = _top_level_commands(formula)
     if commands is None:
-        return "Formula has unbalanced parentheses."
+        return "The rule is incomplete."
     if not commands:
-        return "Formula contains no commands."
+        return "The rule is empty."
     disallowed = sorted({c for c in commands if c not in ALLOWED_COMMANDS})
     if disallowed:
-        return f"Formula uses disallowed commands: {', '.join(disallowed)}."
+        return "The rule uses features that are not allowed."
     # Fresh context per call: one failed parse poisons the shared global
     # context, making every later (valid) formula fail until restart.
     ctx = z3.Context()
@@ -68,23 +68,23 @@ def _check(formula: str) -> str | None:
     except z3.Z3Exception as e:
         # Raw Z3 text is for logs only; the CO sees a plain-English reason.
         logger.warning("Z3 parse error detail=%s", str(e).strip()[:200])
-        return "The formula is not logically well-formed."
+        return "The rule is not logically well-formed."
     if len(assertions) == 0:
-        return "Formula contains no assertions."
+        return "The rule does not state any condition."
     for assertion in assertions:
         simplified = z3.simplify(assertion)
         if z3.is_true(simplified):
-            return "An assertion is always true, so it constrains nothing."
+            return "The rule is always true, so it would not restrict anything."
         if z3.is_false(simplified):
-            return "An assertion is always false, so no model can comply."
+            return "The rule can never be met, so no model could comply."
     solver = z3.Solver(ctx=ctx)
     solver.set("timeout", SOLVER_TIMEOUT_MS)
     solver.add(assertions)
     verdict = solver.check()
     if verdict == z3.unsat:
-        return "The assertions contradict each other, so no model can comply."
+        return "The rule contradicts itself, so no model could comply."
     if verdict == z3.unknown:
-        return "Z3 could not decide whether the rule is satisfiable."
+        return "The rule could not be checked."
     return None
 
 

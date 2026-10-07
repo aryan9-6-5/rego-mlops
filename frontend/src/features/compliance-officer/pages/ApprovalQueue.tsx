@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { errorMessage } from '@/lib/api/client';
 import { REGULATION_STATUS } from '@/lib/utils/constants';
+import { regulationVersionLabel } from '@/lib/utils/regulationLabels';
 import { useRegulations } from '../api/regulations';
 import { StatusBadge } from '../components/ComplianceBadge';
 import { RuleReviewCard } from '../components/RuleReviewCard';
@@ -59,7 +60,7 @@ const ApprovalQueue: React.FC = () => {
                   className="flex w-full items-center justify-between gap-4 rounded-xl border border-slate-800 bg-slate-900/50 p-5 text-left hover:border-slate-600"
                 >
                   <span>
-                    <span className="block font-mono text-sm text-slate-400">{rule.rule_id}</span>
+                    <span className="block text-sm text-slate-400">{regulationVersionLabel(rule.rule_id, `${rule.rule_id}-${rule.version}`)}</span>
                     <span className="block text-slate-100">{rule.description ?? 'Review rule'}</span>
                   </span>
                   <StatusBadge status={rule.status} />
@@ -77,7 +78,7 @@ const ApprovalQueue: React.FC = () => {
             {failed.map((rule) => (
               <li key={rule.id} className="rounded-xl border border-red-900 bg-red-950/30 p-5">
                 <div className="flex items-center justify-between gap-4">
-                  <span className="font-mono text-sm text-slate-400">{rule.rule_id}</span>
+                  <span className="text-sm text-slate-400">{regulationVersionLabel(rule.rule_id, `${rule.rule_id}-${rule.version}`)}</span>
                   <StatusBadge status={rule.status} />
                 </div>
                 <p className="mt-2 text-red-100">
@@ -99,7 +100,7 @@ const ApprovalQueue: React.FC = () => {
             {active.map((rule) => (
               <li key={rule.id} className="flex items-center justify-between gap-4 rounded-lg border border-slate-800 p-4">
                 <span className="text-slate-200">
-                  <span className="font-mono text-sm text-slate-400">{rule.rule_id}</span>{' '}
+                  <span className="text-sm text-slate-400">{regulationVersionLabel(rule.rule_id, `${rule.rule_id}-${rule.version}`)}</span>{' '}
                   {rule.description}
                 </span>
                 <StatusBadge status={rule.status} />

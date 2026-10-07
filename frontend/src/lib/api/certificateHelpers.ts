@@ -14,11 +14,6 @@ export interface Certificate {
   verification: 'valid' | 'tampered';
 }
 
-/** `RBI-4.1` -> `RBI section 4.1`, in words a compliance officer uses. */
-export function regulationLabel(ruleId: string): string {
-  return ruleId.replace(/^RBI-/, 'RBI section ');
-}
-
 /** Intact certificates issued for one model version. */
 export function certificatesForModel(
   certificates: Certificate[],

@@ -246,6 +246,21 @@ Graph:    Neo4j Aura (lineage queries — "which law was this model compliant wi
 
 ---
 
+**Dashboards and HCI principles (Stage 3.7)**
+- Both dashboards read `pipeline_events` through Supabase Realtime (migration 07 adds the table to the `supabase_realtime` publication; row level security still applies). The compliance status is derived in the browser by `deriveComplianceStatus` from the latest gate event, the latest intact certificate and the rules in force. A violation newer than the latest certificate turns it red; rules not covered by the latest certificate make it amber.
+- The compliance officer interface shows no rule IDs, hashes or Z3 terms. Rules appear as "RBI section 4.1, version of 7 Oct 2026". The exact condition of a rule is rendered in words by `readableRule`, a deterministic translator (not an LLM) that returns nothing for logic it cannot express, so the officer can check the AI's summary against the real condition.
+- `GET /api/pipeline/drift-log` and `GET /api/models/diff` (ML engineer and CTO) back the MLE dashboard and Model Diff page. A diff change is compliance-impacting when its feature appears in an active rule.
+
+| Principle | Where it is enforced | Check |
+|-----------|---------------------|-------|
+| Visibility | `deriveComplianceStatus` always yields plain-English text; the hero is a live region with colour, icon and label | `complianceStatus.test.ts` |
+| Control | `approver.transition` refuses approve/reject without a human flag; UI needs two deliberate actions | `test_approver.py`, `test_service.py` |
+| Feedback | every gate returns a plain-English result that is streamed and stored | `test_gates.py`, `test_gate_runner.py` |
+| Error Prevention | the only caller of the deployer is `cd/canary.py`, inside `deploy_model`, which checks CI, then Z3, then writes the certificate, then runs the canary; no function takes a bypass argument | `test_no_bypass.py`, `test_deploy.py` |
+| Accessibility | separate role-gated routes and separate API roles for each interface | `require_role` on every route; no browser accessibility audit yet (Stage 6.2) |
+
+Error Prevention covers Rego's own deploy path. Someone with Railway access can still redeploy a service by hand outside Rego.
+
 ## 5. Pinned Versions (Lockfile)
 
 These are the approved versions. Do not upgrade without updating this file and re-running full CI.

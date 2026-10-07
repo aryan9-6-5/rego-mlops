@@ -6,6 +6,7 @@ import {
   FileCheck, 
   ListChecks, 
   Boxes, 
+  GitCompare, 
   ShieldAlert, 
   GitBranch, 
   ShieldCheck, 
@@ -65,6 +66,12 @@ export const Shell: React.FC<ShellProps> = ({ children }) => {
       roles: ['ml_engineer']
     },
     { 
+      name: 'Model Diff',
+      href: '/model-diff',
+      icon: GitCompare,
+      roles: ['ml_engineer']
+    },
+    {
       name: 'Certificates', 
       href: '/certificates', 
       icon: ShieldCheck,

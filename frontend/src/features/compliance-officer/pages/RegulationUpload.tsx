@@ -75,8 +75,8 @@ const RegulationUpload: React.FC = () => {
       <div role="status" className="mx-auto max-w-3xl space-y-2 rounded-2xl border border-slate-800 bg-slate-900/50 p-8">
         <h2 className="text-xl font-semibold text-white">Extracting rules...</h2>
         <p className="text-slate-300">
-          Sending your text to the AI, then checking the logical structure of each
-          rule. This usually takes 10 to 30 seconds.
+          Sending your text to the AI, then making sure each rule is valid. This
+          usually takes 10 to 30 seconds.
         </p>
       </div>
     );

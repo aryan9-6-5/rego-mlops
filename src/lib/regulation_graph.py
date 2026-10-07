@@ -41,3 +41,24 @@ def fetch_active_rules(graph: GraphClient) -> list[ActiveRule]:
         )
         for row in graph.run_query(_ACTIVE_RULES)
     ]
+
+
+_RECENT_VERSIONS = """
+MATCH (r:Regulation)
+WHERE r.formal_logic IS NOT NULL
+RETURN r.version_id AS version_id,
+       r.rule_id AS rule_id,
+       r.section AS section,
+       r.status AS status,
+       r.activated_at AS activated_at,
+       r.superseded_at AS superseded_at
+ORDER BY r.activated_at DESC
+LIMIT $limit
+"""
+
+
+def recent_regulation_versions(
+    graph: GraphClient, limit: int = 20
+) -> list[dict[str, Any]]:
+    """Newest regulation versions first, active and superseded: the drift log."""
+    return graph.run_query(_RECENT_VERSIONS, {"limit": limit})

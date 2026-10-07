@@ -22,6 +22,7 @@ from src.api.providers import (
     get_graph,
 )
 from src.api.schemas.certificate import DeployRequest, DeployResponse
+from src.api.schemas.model import RegulationVersionRef
 from src.api.schemas.pipeline import (
     PipelineRun,
     SubmitRequest,
@@ -30,7 +31,7 @@ from src.api.schemas.pipeline import (
     TriggerCTResponse,
 )
 from src.lib.model_bundle import SubmissionError
-from src.lib.regulation_graph import GraphClient
+from src.lib.regulation_graph import GraphClient, recent_regulation_versions
 from src.pipeline.cd import service as cd_service
 from src.pipeline.cd.certificate import CertificateStore, DuplicateCertificateError
 from src.pipeline.cd.deployer import Deployer, DeployError
@@ -70,6 +71,16 @@ async def submit_model(
 async def pipeline_status() -> Any:
     """Latest run with the state of every gate."""
     return _registry.snapshot()
+
+
+@router.get(
+    "/drift-log", response_model=list[RegulationVersionRef], dependencies=[MLE_OR_CTO]
+)
+async def regulation_drift_log(
+    graph: Annotated[GraphClient, Depends(get_graph)],
+) -> Any:
+    """Recent regulation versions, newest first: what triggered retraining."""
+    return recent_regulation_versions(graph)
 
 
 @router.post("/deploy", response_model=DeployResponse, status_code=201)

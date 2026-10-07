@@ -6,6 +6,8 @@ import {
   useRejectRegulation,
   type Regulation,
 } from '../api/regulations';
+import { readableRule } from '../lib/readableRule';
+import { regulationVersionLabel } from '@/lib/utils/regulationLabels';
 import { StatusBadge } from './ComplianceBadge';
 
 type Step = 'review' | 'confirm-approve' | 'confirm-reject';
@@ -35,7 +37,9 @@ export const RuleReviewCard: React.FC<Props> = ({ regulation, onDone }) => {
     <section className="space-y-6 rounded-2xl border border-slate-800 bg-slate-900/50 p-8 text-base">
       <header className="flex items-start justify-between gap-4">
         <div>
-          <p className="font-mono text-sm text-slate-400">{regulation.rule_id}</p>
+          <p className="text-sm text-slate-400">
+            {regulationVersionLabel(regulation.rule_id, `${regulation.rule_id}-${regulation.version}`)}
+          </p>
           <h2 className="text-xl font-semibold text-white">Review this rule</h2>
         </div>
         <StatusBadge status={regulation.status} />
@@ -57,12 +61,15 @@ export const RuleReviewCard: React.FC<Props> = ({ regulation, onDone }) => {
           <p className="rounded-lg bg-slate-950 p-4 leading-relaxed text-slate-200">
             {regulation.description ?? 'No plain-English summary was provided.'}
           </p>
-          <details className="mt-3 text-sm text-slate-400">
-            <summary className="cursor-pointer">Show formal rule</summary>
-            <pre className="mt-2 overflow-x-auto rounded-lg bg-slate-950 p-3 font-mono text-xs text-slate-300">
-              {regulation.formal_logic}
-            </pre>
-          </details>
+          <div className="mt-3 text-sm">
+            <p className="font-semibold uppercase tracking-wide text-slate-400">
+              The exact condition that will be checked
+            </p>
+            <p className="mt-1 rounded-lg bg-slate-950 p-3 text-slate-200">
+              {readableRule(regulation.formal_logic) ??
+                'This condition cannot be shown in plain words. Reject it and try again.'}
+            </p>
+          </div>
         </div>
       </div>
 

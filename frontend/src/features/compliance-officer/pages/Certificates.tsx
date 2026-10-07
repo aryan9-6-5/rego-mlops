@@ -43,7 +43,7 @@ const Certificates: React.FC = () => {
           </li>
         ) : (
           <li key={cert.id}>
-            <ProofCertificateView certificate={cert} showProofHash={false} />
+            <ProofCertificateView certificate={cert} technicalView={false} />
           </li>
         ),
       )}
