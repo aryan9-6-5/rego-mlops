@@ -1,6 +1,6 @@
 # Frontend dependency upgrade plan
 
-Status: plan only. Nothing in this document has been applied to the repository.
+Status: steps 1 and 2 are applied (October 2026). Step 3 (tailwindcss 4) is deferred.
 Versions are pinned in docs/TECH.md, so each step below also needs a TECH.md edit.
 
 ## Why

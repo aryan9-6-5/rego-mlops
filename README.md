@@ -105,7 +105,7 @@ npx playwright test                # browser tests, using the Chrome on your mac
 
 ## Full setup
 
-You need Python 3.11 or newer, Node 20, Poetry 2, Docker (for Neo4j), a Supabase project, and an OpenRouter API key.
+You need Python 3.11 or newer, Node 22, Poetry 2, Docker (for Neo4j), a Supabase project, and an OpenRouter API key.
 
 1. Configure the environment.
 

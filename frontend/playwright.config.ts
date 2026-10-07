@@ -1,6 +1,6 @@
 import { defineConfig } from '@playwright/test';
 
-const PORT = 5174;
+const PORT = Number(process.env.E2E_PORT ?? 5174);
 
 /**
  * UI end-to-end tests. They run the real frontend against a stubbed API and a

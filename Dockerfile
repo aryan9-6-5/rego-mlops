@@ -8,7 +8,7 @@
 # into the browser bundle. Never pass a service key here.
 
 # --- 1. Build the frontend ---------------------------------------------------------
-FROM node:20-slim AS web
+FROM node:22-slim AS web
 WORKDIR /web
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
