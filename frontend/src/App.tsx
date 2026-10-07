@@ -4,7 +4,8 @@ import { Shell } from "./components/layout/Shell";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Unauthorized from "./pages/Unauthorized";
-import Regulations from "./features/compliance-officer/pages/Regulations";
+import RegulationUpload from "./features/compliance-officer/pages/RegulationUpload";
+import ApprovalQueue from "./features/compliance-officer/pages/ApprovalQueue";
 import Pipeline from "./features/ml-engineer/pages/Pipeline";
 
 function App() {
@@ -25,7 +26,15 @@ function App() {
         <Route path="/regulations" element={
           <ProtectedRoute allowedRoles={['compliance_officer']}>
             <Shell>
-              <Regulations />
+              <RegulationUpload />
+            </Shell>
+          </ProtectedRoute>
+        } />
+
+        <Route path="/approval-queue" element={
+          <ProtectedRoute allowedRoles={['compliance_officer']}>
+            <Shell>
+              <ApprovalQueue />
             </Shell>
           </ProtectedRoute>
         } />

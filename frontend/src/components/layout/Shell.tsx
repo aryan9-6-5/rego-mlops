@@ -4,6 +4,7 @@ import { useAuth } from '../../lib/auth/useAuth';
 import { 
   LayoutDashboard, 
   FileCheck, 
+  ListChecks, 
   GitBranch, 
   ShieldCheck, 
   LogOut, 
@@ -32,9 +33,15 @@ export const Shell: React.FC<ShellProps> = ({ children }) => {
       roles: ['compliance_officer', 'ml_engineer']
     },
     { 
-      name: 'Regulations', 
+      name: 'Add Regulation', 
       href: '/regulations', 
       icon: FileCheck,
+      roles: ['compliance_officer']
+    },
+    { 
+      name: 'Approval Queue', 
+      href: '/approval-queue', 
+      icon: ListChecks,
       roles: ['compliance_officer']
     },
     { 

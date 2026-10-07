@@ -53,6 +53,7 @@ async def ingest_regulation(
                 "rule_id": rule_id,
                 "jurisdiction": jurisdiction,
                 "source_text": text,
+                "description": candidate.description,
                 "formal_logic": candidate.formal_logic,
                 "status": S.EXTRACTED.value,
                 "version": version,

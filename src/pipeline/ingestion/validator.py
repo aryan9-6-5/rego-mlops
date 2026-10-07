@@ -63,7 +63,9 @@ def _check(formula: str) -> str | None:
     try:
         assertions = z3.parse_smt2_string(formula)
     except z3.Z3Exception as e:
-        return f"Z3 could not parse the formula: {str(e).strip()[:200]}"
+        # Raw Z3 text is for logs only; the CO sees a plain-English reason.
+        logger.warning("Z3 parse error detail=%s", str(e).strip()[:200])
+        return "The formula is not logically well-formed."
     if len(assertions) == 0:
         return "Formula contains no assertions."
     for assertion in assertions:

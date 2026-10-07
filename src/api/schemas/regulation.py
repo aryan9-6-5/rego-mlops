@@ -56,6 +56,7 @@ class RegulationRead(BaseModel):
     rule_id: str
     jurisdiction: str
     source_text: str
+    description: str | None = None
     formal_logic: str
     status: RegulationStatus
     version: str
