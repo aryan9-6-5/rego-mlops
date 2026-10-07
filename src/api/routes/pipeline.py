@@ -12,7 +12,16 @@ from fastapi import (
 from fastapi.security import HTTPAuthorizationCredentials
 
 from src.api.dependencies import get_current_user, require_role
-from src.api.providers import get_artifact_dir, get_event_store, get_graph
+from src.api.providers import (
+    get_artifact_dir,
+    get_cert_secret,
+    get_cert_store,
+    get_ci_reader,
+    get_deployer,
+    get_event_store,
+    get_graph,
+)
+from src.api.schemas.certificate import DeployRequest, DeployResponse
 from src.api.schemas.pipeline import (
     PipelineRun,
     SubmitRequest,
@@ -20,11 +29,15 @@ from src.api.schemas.pipeline import (
     TriggerCTRequest,
     TriggerCTResponse,
 )
+from src.lib.model_bundle import SubmissionError
 from src.lib.regulation_graph import GraphClient
+from src.pipeline.cd import service as cd_service
+from src.pipeline.cd.certificate import CertificateStore, DuplicateCertificateError
+from src.pipeline.cd.deployer import Deployer, DeployError
+from src.pipeline.cd.stores import CIEventReader, CINotConfirmedError
 from src.pipeline.ci import service
 from src.pipeline.ci.event_store import PipelineEventStore
 from src.pipeline.ci.run_registry import RunRegistry
-from src.pipeline.ci.submission import SubmissionError
 from src.pipeline.ct import trigger
 
 router = APIRouter(prefix="/pipeline", tags=["pipeline"])
@@ -57,6 +70,47 @@ async def submit_model(
 async def pipeline_status() -> Any:
     """Latest run with the state of every gate."""
     return _registry.snapshot()
+
+
+@router.post("/deploy", response_model=DeployResponse, status_code=201)
+async def deploy_model(
+    body: DeployRequest,
+    graph: Annotated[GraphClient, Depends(get_graph)],
+    cert_store: Annotated[CertificateStore, Depends(get_cert_store)],
+    ci_reader: Annotated[CIEventReader, Depends(get_ci_reader)],
+    deployer: Annotated[Deployer, Depends(get_deployer)],
+    base_dir: Annotated[Path, Depends(get_artifact_dir)],
+    secret: Annotated[str, Depends(get_cert_secret)],
+    _user: Annotated[dict[str, Any], MLE_ONLY],
+) -> Any:
+    """Compliance-gated deploy. Refused unless every CI gate has passed."""
+    try:
+        outcome = await cd_service.deploy_model(
+            model_version=body.model_version,
+            base_dir=base_dir,
+            graph=graph,
+            cert_store=cert_store,
+            ci_reader=ci_reader,
+            deployer=deployer,
+            secret=secret,
+        )
+    except (CINotConfirmedError, DuplicateCertificateError) as e:
+        raise HTTPException(status_code=409, detail=_conflict_message(e))
+    except cd_service.VerificationFailedError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except SubmissionError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except (cd_service.DeploymentFailedError, DeployError) as e:
+        raise HTTPException(status_code=502, detail=str(e))
+    return DeployResponse(
+        model_version=body.model_version, certificate_id=outcome.certificate.id
+    )
+
+
+def _conflict_message(error: Exception) -> str:
+    if isinstance(error, DuplicateCertificateError):
+        return "This model version is already certified against these rules."
+    return str(error)
 
 
 @router.post("/trigger-ct", response_model=TriggerCTResponse, status_code=202)

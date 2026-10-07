@@ -9,10 +9,10 @@ from src.api.schemas.pipeline import (
     GateResult,
     GateStatus,
 )
+from src.lib.model_bundle import Submission
 from src.lib.regulation_graph import ActiveRule
 from src.pipeline.ci import fairness_check, reg_attack, regression, symbolic_check
 from src.pipeline.ci.run_registry import GATE_ORDER
-from src.pipeline.ci.submission import Submission
 
 logger = logging.getLogger(__name__)
 

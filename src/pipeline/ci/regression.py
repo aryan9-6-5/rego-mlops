@@ -1,7 +1,7 @@
 import time
 
 from src.api.schemas.pipeline import GateName, GateResult, GateStatus
-from src.pipeline.ci.submission import Submission
+from src.lib.model_bundle import Submission
 
 # The new model fails if its F1 is more than 5% below the baseline's (relative).
 MAX_RELATIVE_F1_DROP = 0.05

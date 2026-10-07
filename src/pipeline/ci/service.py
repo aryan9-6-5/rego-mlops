@@ -3,11 +3,11 @@ import logging
 from pathlib import Path
 
 from src.api.schemas.pipeline import GateEvent, GateStatus
+from src.lib.model_bundle import Submission, load_submission
 from src.lib.regulation_graph import GraphClient, fetch_active_rules
 from src.pipeline.ci.event_store import PipelineEventStore
 from src.pipeline.ci.gate_runner import fail_run, run_gates
 from src.pipeline.ci.run_registry import RunRegistry
-from src.pipeline.ci.submission import Submission, load_submission
 
 logger = logging.getLogger(__name__)
 

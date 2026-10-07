@@ -8,6 +8,7 @@ import {
   useTriggerCT,
 } from '@/lib/api/pipeline';
 import { GATE_LABEL, GATE_STATUS } from '@/lib/utils/constants';
+import { DeployPanel } from '../components/DeployPanel';
 import { GateStatusBadge } from '../components/GateStatusBadge';
 
 const INPUT = 'w-full rounded-lg border bg-slate-950 px-3 py-2 text-sm text-white';
@@ -117,6 +118,8 @@ const PipelineMonitor: React.FC = () => {
             </tbody>
           </table>
         )}
+
+        {run?.status === GATE_STATUS.COMPLIANT && <DeployPanel modelVersion={run.model_version} />}
 
         {run?.status === GATE_STATUS.VIOLATION && (
           <p className="border-t border-slate-800 px-6 py-4">

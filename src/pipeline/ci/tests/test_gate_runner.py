@@ -3,11 +3,11 @@ from typing import Any
 import pytest
 
 from src.api.schemas.pipeline import GateEvent, GateName, GateStatus
+from src.lib.model_bundle import Submission
 from src.pipeline.ci import regression, symbolic_check
 from src.pipeline.ci.gate_runner import all_compliant, run_gates
 from src.pipeline.ci.run_registry import RunRegistry
 from src.pipeline.ci.service import run_submission
-from src.pipeline.ci.submission import Submission
 from src.pipeline.ci.tests.conftest import INCOME_CAP, NO_PIN, make_submission
 
 

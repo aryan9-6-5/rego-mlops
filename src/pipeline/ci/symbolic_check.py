@@ -2,10 +2,10 @@ import time
 from collections.abc import Sequence
 
 from src.api.schemas.pipeline import GateName, GateResult, GateStatus, Violation
+from src.lib.model_bundle import Submission
 from src.lib.regulation_graph import ActiveRule, GraphClient, fetch_active_rules
 from src.lib.z3_client import Z3ClientError, prove
 from src.pipeline.ci.reporter import explain_rule_violation, explain_unverifiable
-from src.pipeline.ci.submission import Submission
 
 NO_RULES_MESSAGE = (
     "There are no active regulation rules, so the model cannot be certified."

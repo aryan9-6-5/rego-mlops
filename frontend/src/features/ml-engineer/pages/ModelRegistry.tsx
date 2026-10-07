@@ -21,7 +21,7 @@ const ModelRegistry: React.FC = () => {
     return (
       <p className="rounded-lg border border-slate-800 bg-slate-900/50 p-6 text-slate-300">
         No model versions have been certified yet. A model appears here after it
-        passes every compliance gate and is deployed.
+        passes every compliance gate and its certificate is issued.
       </p>
     );
   }

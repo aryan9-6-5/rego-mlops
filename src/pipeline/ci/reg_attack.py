@@ -2,10 +2,10 @@ import time
 from collections.abc import Sequence
 
 from src.api.schemas.pipeline import GateName, GateResult, GateStatus, Violation
+from src.lib.model_bundle import Submission
 from src.lib.regulation_graph import ActiveRule
 from src.lib.z3_client import Z3ClientError, prove, rule_variables
 from src.pipeline.ci.reporter import explain_fragile
-from src.pipeline.ci.submission import Submission
 
 # Relative nudge applied to each weight. Zero stays zero, so an unused
 # prohibited feature is not "attacked" into violation.

@@ -1,18 +1,45 @@
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 
 
-class CertificateBase(BaseModel):
-    pipeline_id: str
-    hash: str
+class CertificateRegulation(BaseModel):
+    """A regulation version a model was certified against."""
 
-class CertificateCreate(CertificateBase):
-    pass
+    model_config = ConfigDict(frozen=True)
 
-class CertificateRead(CertificateBase):
+    version_id: str
+    rule_id: str
+    formula_hash: str
+
+
+class ProofCertificate(BaseModel):
+    """Immutable once written."""
+
+    model_config = ConfigDict(frozen=True)
+
     id: str
-    created_at: datetime
+    model_version: str
+    regulation_versions: list[CertificateRegulation]
+    proof_hash: str
+    hmac_signature: str
+    created_at: datetime | None = None
 
-    class Config:
-        from_attributes = True
+
+class CertificateRead(ProofCertificate):
+    """A certificate as served by the API. `verification` is `tampered` when the
+    stored HMAC does not match; the hash and signature are then blanked."""
+
+    verification: str = "valid"
+
+
+class DeployRequest(BaseModel):
+    model_version: str = Field(
+        min_length=1, max_length=200, pattern=r"^[A-Za-z0-9._-]+$"
+    )
+
+
+class DeployResponse(BaseModel):
+    model_version: str
+    certificate_id: str
+    status: str = "promoted"

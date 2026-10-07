@@ -223,6 +223,13 @@ Tools:  FastAPI (serving endpoint)
 Output: Deployed model + proof certificate (model_version + regulation_versions + z3_proof_hash)
 ```
 
+**CD conventions (Stage 3.5)**
+- `POST /api/pipeline/deploy` (ML engineer only) refuses unless the latest CI result for every gate is compliant in `pipeline_events`. It then re-proves every active rule with Z3 against the model bundle, writes the certificate once, records lineage, runs a canary with a shadow Z3 check, and promotes. There is no override.
+- `proof_hash` is a SHA-256 over the model bundle hash and the (version, rule, formula hash) of every active rule. It is deterministic, so deploying the same model against the same rules twice hits the unique constraint and returns 409. A new regulation version gives a new hash and so a new certificate.
+- `hmac_signature` covers model version, regulation versions and proof hash, keyed with `PROOF_CERT_SECRET`. Every read re-verifies it; a failing certificate returns 422 from `GET /certificates/{id}` and is listed as `tampered` (hash and signature blanked).
+- There is no create, update or delete certificate route. Compliance officers do not see proof hashes on screen; the downloaded JSON includes them for auditors.
+- The Railway deployer sets `MODEL_VERSION` on a canary service, then on the main service, and redeploys. Railway cannot split traffic by percentage, so the canary takes no live traffic. Its GraphQL calls are untested against a live project. Variables: `RAILWAY_API_TOKEN`, `RAILWAY_PROJECT_ID`, `RAILWAY_ENVIRONMENT_ID`, `RAILWAY_SERVICE_ID`, `RAILWAY_CANARY_SERVICE_ID`.
+
 ### HCI Dashboard
 ```
 Backend:  FastAPI (REST + WebSocket for real-time status)

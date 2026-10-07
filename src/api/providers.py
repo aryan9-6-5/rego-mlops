@@ -7,6 +7,9 @@ through `app.dependency_overrides`.
 import os
 from pathlib import Path
 
+from src.pipeline.cd.certificate import CertificateStore
+from src.pipeline.cd.deployer import Deployer
+from src.pipeline.cd.stores import CIEventReader
 from src.pipeline.ci.event_store import PipelineEventStore
 from src.pipeline.ingestion.extractor import TextCompleter
 from src.pipeline.ingestion.store import RegulationStore
@@ -41,3 +44,30 @@ def get_event_store() -> PipelineEventStore:
 
 def get_artifact_dir() -> Path:
     return Path(os.environ.get("MODEL_ARTIFACT_DIR", "artifacts/models"))
+
+
+def get_cert_store() -> CertificateStore:
+    from src.lib.supabase_client import supabase_client
+    from src.pipeline.cd.stores import SupabaseCertificateStore
+
+    return SupabaseCertificateStore(supabase_client.client)
+
+
+def get_ci_reader() -> CIEventReader:
+    from src.lib.supabase_client import supabase_client
+    from src.pipeline.cd.stores import SupabaseCIEventReader
+
+    return SupabaseCIEventReader(supabase_client.client)
+
+
+def get_deployer() -> Deployer:
+    from src.pipeline.cd.deployer import RailwayDeployer
+
+    return RailwayDeployer()
+
+
+def get_cert_secret() -> str:
+    secret = os.environ.get("PROOF_CERT_SECRET", "")
+    if not secret:
+        raise RuntimeError("PROOF_CERT_SECRET must be set.")
+    return secret

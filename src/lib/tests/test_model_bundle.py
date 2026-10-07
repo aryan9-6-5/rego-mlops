@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from src.pipeline.ci.submission import SubmissionError, load_submission
+from src.lib.model_bundle import SubmissionError, load_submission
 
 EVAL = {
     "y_true": [1, 0],

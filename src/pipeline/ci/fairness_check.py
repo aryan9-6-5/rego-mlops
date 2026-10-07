@@ -2,7 +2,7 @@ import time
 from collections import defaultdict
 
 from src.api.schemas.pipeline import GateName, GateResult, GateStatus
-from src.pipeline.ci.submission import Submission
+from src.lib.model_bundle import Submission
 
 # Largest allowed gap in positive-prediction rate between any two groups.
 MAX_DEMOGRAPHIC_PARITY_GAP = 0.10

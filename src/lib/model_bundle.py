@@ -85,3 +85,23 @@ def load_submission(artifact_path: str, base_dir: Path) -> Submission:
         else None
     )
     return Submission(target.name, weights, evaluation)
+
+
+def bundle_hash(artifact_path: str, base_dir: Path) -> str:
+    """SHA-256 over the bundle's files, binding a certificate to exact model data.
+
+    Uses the same path rules as `load_submission`.
+    """
+    import hashlib
+
+    base = base_dir.resolve()
+    target = (base / artifact_path).resolve()
+    if base != target and base not in target.parents:
+        raise SubmissionError("Artifact path is outside the model directory.")
+    digest = hashlib.sha256()
+    for name in ("profile.json", "evaluation.json"):
+        file = target / name
+        if file.exists():
+            digest.update(name.encode())
+            digest.update(file.read_bytes())
+    return digest.hexdigest()

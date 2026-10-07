@@ -1,7 +1,7 @@
 import pytest
 
+from src.lib.model_bundle import Evaluation, Submission
 from src.lib.regulation_graph import ActiveRule
-from src.pipeline.ci.submission import Evaluation, Submission
 
 NO_PIN = ActiveRule(
     version_id="RBI-4.1-20261007T000000Z",
