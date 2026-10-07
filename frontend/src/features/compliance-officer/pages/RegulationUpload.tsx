@@ -111,7 +111,7 @@ const RegulationUpload: React.FC = () => {
         <label htmlFor="regulation-text" className="mb-2 block font-medium text-slate-200">
           Regulatory text
         </label>
-        <input {...getInputProps()} />
+        <input {...getInputProps({ 'aria-label': 'Upload a text file' })} />
         <textarea
           id="regulation-text"
           value={content}

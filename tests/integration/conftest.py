@@ -1,3 +1,4 @@
+import os
 import sys
 import types
 from collections.abc import Iterator
@@ -7,6 +8,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from tests.integration import fakes
+
+os.environ["FRONTEND_DIST"] = "/nonexistent"  # API tests never serve a build
 
 # The real client connects to Supabase when imported. Replace the module before
 # anything imports the API, so the app can load with no environment and no

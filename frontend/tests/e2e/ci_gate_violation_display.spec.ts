@@ -42,13 +42,13 @@ test('the ML engineer sees the exact violation, with the Z3 counterexample', asy
   let submitted = false;
   api
     .on((c) => {
-      if (c.method === 'POST' && c.path === '/pipeline/submit') {
+      if (c.method === 'POST' && c.path === '/api/pipeline/submit') {
         submitted = true;
         return { status: 202, body: { model_version: 'bad-model', status: 'accepted' } };
       }
       return undefined;
     })
-    .on((c) => (c.path === '/pipeline/status' ? { body: submitted ? VIOLATION_RUN : null } : undefined));
+    .on((c) => (c.path === '/api/pipeline/status' ? { body: submitted ? VIOLATION_RUN : null } : undefined));
   await api.install(page);
   await signIn(page, 'ml_engineer');
 
@@ -64,7 +64,7 @@ test('the ML engineer sees the exact violation, with the Z3 counterexample', asy
   await expect(rows.nth(0)).toContainText('Symbolic check (Z3)');
   await expect(rows.nth(0)).toContainText('Violation');
   for (const index of [1, 2, 3]) await expect(rows.nth(index)).toContainText('Skipped');
-  expect(api.calls.find((c) => c.path === '/pipeline/submit')?.body).toEqual({
+  expect(api.calls.find((c) => c.path === '/api/pipeline/submit')?.body).toEqual({
     artifact_path: 'bad-model',
   });
 
@@ -83,7 +83,7 @@ test('the compliance officer sees the violation in plain English only, and canno
   const api = new StubApi();
   api
     .on((c) =>
-      c.path === '/regulations/'
+      c.path === '/api/regulations/'
         ? {
             body: [
               {
@@ -102,7 +102,7 @@ test('the compliance officer sees the violation in plain English only, and canno
         : undefined,
     )
     .on((c) =>
-      c.path === '/certificates/'
+      c.path === '/api/certificates/'
         ? {
             body: [
               {
@@ -151,5 +151,5 @@ test('the compliance officer sees the violation in plain English only, and canno
   await expect(page).toHaveURL(/\/unauthorized$/);
   await page.goto('/pipeline');
   await expect(page).toHaveURL(/\/unauthorized$/);
-  expect(api.count('GET', '/pipeline/status')).toBe(0);
+  expect(api.count('GET', '/api/pipeline/status')).toBe(0);
 });

@@ -1,214 +1,263 @@
-# Rego MLOps: Continuous Regulatory Compliance Reasoning
+# Rego
 
-> **"Every other MLOps platform retrains when data changes. Rego retrains when the LAW changes."**
+Continuous regulatory compliance reasoning for machine learning.
 
-Rego is a next-generation MLOps and RegTech platform that integrates regulatory compliance as a first-class, automated gate in the Machine Learning lifecycle. Instead of treating compliance as a manual, post-hoc audit process, Rego uses **neuro-symbolic AI**—combining Large Language Models (LLMs) for legal text translation with the **Z3 SMT Solver** for formal mathematical verification—to enforce regulatory compliance before models ever reach production.
+Most MLOps platforms retrain a model when the data changes. Rego treats a change in the law as the trigger instead. A regulation is translated into formal logic, a person approves that translation, and every model must then be proved compliant with it before it can be deployed. The proof is stored as a signed certificate that an auditor can check in seconds.
 
----
+The first use case is loan approval models under the Reserve Bank of India (RBI) Digital Lending Directions, 2025.
 
-## 🚀 The Core Innovation: Why Rego is Unprecedented
+## What Rego does differently
 
-Traditional financial institutions spend millions of dollars and months of manual engineering effort trying to align their credit scoring and decision-making models with changing guidelines. Rego automates this entire loop, making legal change the primary driver of Continuous Training (CT).
-
-| What everyone else builds | What Rego builds |
+| Common practice | Rego |
 |:---|:---|
-| **CT triggered by data drift** | **CT triggered by regulatory drift** (law changes) |
-| **Compliance as post-deployment audit** | **Compliance as deployment gate** (automated block) |
-| **Engineers interpret laws manually** | **LLM drafts candidate logic, Z3 validates structure, human approves semantic intent** |
-| **Audit = 400-page PDF report** | **Audit = 10-second machine-verifiable proof certificate** |
-| **Model versions tracked** | **Law versions + Model versions tracked together in a lineage graph** |
-| **Compliance is a feature** | **Compliance is the pipeline** |
-| **Compliance team is external** | **Compliance officer is a pipeline actor** |
+| Retraining is triggered by data drift | Retraining is triggered by regulatory drift |
+| Compliance is checked after deployment | Compliance is a gate: a non-compliant model cannot be deployed |
+| Engineers interpret the law by hand | An LLM drafts a candidate rule, Z3 checks its structure, and a compliance officer approves its meaning |
+| An audit is a long report | An audit is a certificate that can be machine-verified |
+| Model versions are tracked | Law versions and model versions are tracked together |
+| The compliance team is outside the pipeline | The compliance officer is a step in the pipeline |
 
----
+## Status
 
-## 🛠️ The Tech Stack
+All seven features in the plan are implemented and tested: ingestion, version control and lineage, compliance CI gates, regulation-triggered training, gated deployment, proof certificates, and the two dashboards.
 
-- **Reasoning Core**: Microsoft Research's **Z3 SMT Solver** (pinned at `4.12.6.0`)
-- **LLM Layer**: **OpenRouter API** (Claude 3.5 Sonnet with GPT-4o fallback)
-- **Backend API**: **FastAPI** (Python 3.11)
-- **Knowledge Graph**: **Neo4j Aura** (Regulatory rule version lineage & model mapping)
-- **Database & Auth**: **Supabase** (Postgres data store, real-time events, and RBAC auth)
-- **Model Registry & Tracking**: **MLflow** & **DVC**
-- **Frontend**: **React 18** + **TypeScript** + **Vite** + **Vanilla CSS**
-- **Infrastructure**: **Docker & Docker Compose** for local dev, **Railway** for production
+What has been verified:
 
----
+- The Python test suite (more than 450 tests, 98 percent coverage), the frontend unit tests, and seven browser tests run in CI on every push.
+- The API, the Z3 checks, the approval and deployment flows, and the certificate signing run end to end against in-memory stand-ins for the outside services.
+- The production container configuration runs and serves both the API and the web app.
 
-## 📐 Architecture Diagram
+What has not been verified against real services yet:
+
+- Neo4j queries, Supabase row level security and Realtime, Railway deployment, Kaggle training, GitHub workflow dispatch, and a real LLM. The tests use stand-ins for these.
+- A live deployment. See `docs/DEPLOY.md`.
+
+Known limitations are listed at the end of this file.
+
+## How it works
+
+Three roles use the system:
+
+- Compliance officer: pastes regulatory text, reviews the rule the system extracted, and approves or rejects it. Sees plain English only.
+- ML engineer: submits models, reads violation reports (including the solver's counterexample), and deploys.
+- CTO: read-only access to everything.
+
+The flow:
+
+1. The compliance officer pastes a provision of the regulation.
+2. An LLM drafts a candidate rule in SMT-LIB2, a standard logic format. The LLM output is never trusted as a final rule.
+3. Z3 checks that the rule is well formed, not always true, not always false, and not self-contradictory. A rule that fails is rejected before a person sees it.
+4. The compliance officer reads the original text beside a plain-English meaning and the exact condition in words, then approves in two deliberate steps.
+5. The approved rule is stored in the Neo4j knowledge graph as a versioned regulation. A newer version supersedes the older one and the older one is kept.
+6. When a model is submitted, four gates run in order: a symbolic check with Z3, a boundary robustness check, a fairness check, and a performance regression check. The first failure stops the run and later gates do not execute.
+7. To deploy, Rego confirms that every gate passed, proves the model against the rules active at that moment, writes one signed certificate, records which regulation versions the model was certified against, runs a canary with a second Z3 check, and promotes.
+8. A new active regulation version is detected by a scheduled GitHub Actions workflow, which retrains the model on Kaggle and submits it to the same gates.
+
+## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    REGO PLATFORM                         │
-│                                                         │
-│  ┌──────────────┐    ┌──────────────────────────────┐  │
-│  │  React       │    │        FastAPI                │  │
-│  │  Dashboard   │◄──►│  /api/regulations             │  │
-│  │              │    │  /api/pipeline                │  │
-│  │  [CO View]   │    │  /api/certificates            │  │
-│  │  [MLE View]  │    │  /api/models                  │  │
-│  └──────────────┘    └──────────┬───────────────────┘  │
-│                                  │                       │
-│         ┌────────────────────────┼───────────────┐      │
-│         ▼                        ▼               ▼      │
-│  ┌─────────────┐  ┌─────────────────┐  ┌──────────────┐│
-│  │  Supabase   │  │  Neo4j Aura     │  │  MLflow      ││
-│  │  (users,    │  │  (law↔model     │  │  (model      ││
-│  │   events,   │  │   lineage       │  │   registry)  ││
-│  │   certs)    │  │   graph)        │  │              ││
-│  └─────────────┘  └─────────────────┘  └──────────────┘│
-│                                                         │
-│  ┌──────────────────────────────────────────────────┐  │
-│  │              CI/CD/CT PIPELINE                    │  │
-│  │                                                   │  │
-│  │  OpenRouter──►LLM──►Z3 Validate──►Neo4j Store    │  │
-│  │  (rule extraction)   (well-formed?)  (version)    │  │
-│  │                                                   │  │
-│  │  GitHub Actions──►Z3 Gates──►Docker──►Railway     │  │
-│  │  (orchestration)  (CI checks)  (build) (deploy)   │  │
-│  └──────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────┘
+  Browser (React, two interfaces)
+        |
+        |  HTTPS, /api
+        v
+  FastAPI ------------------------------+
+   |         |          |               |
+   |         |          |               +--> OpenRouter (LLM, offline only)
+   v         v          v
+ Supabase   Neo4j     Z3 solver
+ (users,    (rule     (the only engine
+ events,    versions, allowed to decide
+ certs)     lineage)  compliance)
+
+  GitHub Actions
+   - ci.yml : lint, types, tests, security, browser tests
+   - ct.yml : detect regulation change, retrain on Kaggle, run gates
+   - cd.yml : placeholder, real deploys go through the API
+
+  Railway: one container serving the API and the built web app
 ```
 
----
+The code is organised in three layers. `lib` holds clients for outside services and imports nothing else in the project. `pipeline` holds the ingestion, ci, ct and cd stages and does not import from `features`. `features` holds dashboard-facing logic. The rules are enforced by tests and linting.
 
-## ✈️ The Z3 Story: Aerospace Verification for Finance
+## Try it in five minutes, with no accounts
 
-To guarantee compliance, we cannot rely on probabilistic models like LLMs to make the final determination. LLMs can hallucinate, drift, or make logical errors. 
+This runs the real API and the real Z3 solver. Neo4j, Supabase, Railway and the LLM are replaced by in-memory stand-ins, so nothing needs to be installed or configured beyond Python.
 
-Rego solves this by leveraging **Satisfiability Modulo Theories (SMT)** via Microsoft’s Z3 solver. This is the exact same class of formal verification used to prove the correctness of safety-critical systems like:
-- **Boeing 787 flight control software**
-- **Intel CPU logic circuits**
-- **NASA space shuttle control models**
+```bash
+git clone https://github.com/aryan9-6-5/rego-mlops.git
+cd rego-mlops
+pip install poetry
+poetry install
+poetry run python scripts/demo_offline.py
+```
 
-When a new regulation is ingested, the system represents it as a Z3 logical formula, and models express their decision weights as mathematical constraints. Z3 then attempts to find a scenario where the model violates the rule:
-- **UNSATISFIABLE (UNSAT)**: The solver proves it is mathematically impossible to violate the regulation under the model's constraints. The model is **compliant**.
-- **SATISFIABLE (SAT)**: The solver finds a model assignment (a **counterexample**) showing exactly how the model violates the regulation. The model is **non-compliant**, and the counterexample is translated into plain language.
+The script walks through ingesting three real RBI provisions, approving them, passing a compliant model through the gates and deploying it, blocking a model that reads the phone contact list, checking a certificate as an auditor, and detecting a tampered certificate. It finishes in about a second.
 
----
+To run the tests:
 
-## 📋 Core Workflows & How They Work
+```bash
+poetry run pytest --cov            # Python, with the 90 percent coverage gate
+cd frontend
+npm ci
+npm test                           # component and unit tests
+npx playwright test                # browser tests, using the Chrome on your machine
+```
 
-### 1. Ingestion: How to Add an RBI Rule
-1. A **Compliance Officer (CO)** uploads or pastes a raw legal circular (e.g., India's RBI Master Direction on Digital Lending, 2022).
-2. The **LLM Ingestion Engine** (`src/pipeline/ingestion/extractor.py`) parses the text and drafts a candidate Z3 formula.
-3. The **Ingestion Validator** (`src/pipeline/ingestion/validator.py`) passes the formula to Z3 to ensure it is structurally sound, valid, and free of contradictions.
-4. A three-signal **Confidence Score** is calculated (completeness, Z3-validity, specificity).
-5. The CO reviews the raw text side-by-side with the translated formula and submits **Human Approval** (a two-click flow).
-6. Approved rules are versioned and stored in the **Neo4j Knowledge Graph** as `(:Regulation)` nodes.
+## Full setup
 
-### 2. Verification: How to Submit a Model
-1. The **ML Engineer (MLE)** registers a model artifact or submits a new version.
-2. The **CI compliance-aware gate** is triggered (`src/pipeline/ci/gate_runner.py`), running four sequential stages:
-   * **Symbolic Check**: Z3 checks the model's feature weights against all active rules stored in Neo4j.
-   * **RegAttack**: Adversarial regulatory tests attempt to force the model into edge-case violations.
-   * **Fairness Check**: Demographic parity checks via Evidently AI.
-   * **Regression Check**: Evaluates performance regression to prevent F1-score drops.
-3. If any gate fails, the pipeline halts immediately, generating a plain-English explanation of the exact rule violated and the Z3 counterexample values.
+You need Python 3.11 or newer, Node 20, Poetry 2, Docker (for Neo4j), a Supabase project, and an OpenRouter API key.
 
-### 3. Certification: How Proof Certificates Work
-1. When all CI gates pass, the deployment gate is unlocked.
-2. The CD system (`src/pipeline/cd/certificate.py`) collects the Z3 proof hashes, model metadata, and active regulation versions.
-3. An **immutable Proof Certificate** is generated, signed using a secure HMAC key, and stored in Supabase.
-4. Auditors can verify the integrity of the proof certificate in under 10 seconds via the verification endpoint without exposing underlying model internals.
+1. Configure the environment.
 
----
-
-## ⚙️ Getting Started
-
-### Prerequisites
-- **Python**: `3.11.x`
-- **Node.js**: `18.x+` (with npm)
-- **Docker**: For running database and graph services locally
-- **Poetry**: Python dependency management
-
-### Local Setup
-
-1. **Clone the Repository & Environment Configuration**
    ```bash
-   git clone https://github.com/aryan9-6-5/rego-mlops.git
-   cd rego-mlops
    cp .env.example .env
-   # Fill in the required environment variables in .env (OpenRouter API, Supabase, Neo4j, etc.)
    ```
 
-2. **Backend Setup**
+   Fill in the values. Use the same `NEO4J_PASSWORD` for the Neo4j container and the backend (it defaults to `password` for local use). `PROOF_CERT_SECRET` must be at least 32 random bytes, for example the output of `python -c "import secrets; print(secrets.token_urlsafe(48))"`. The Supabase service key stays on the server and must never be placed in a `VITE_` variable.
+
+2. Create the database. Run the files in `supabase/migrations/` in order, 01 to 08, in the Supabase SQL editor or with the Supabase CLI. Migration 08 tightens row level security and makes certificates append-only.
+
+3. Start Neo4j and the backend.
+
    ```bash
-   # Install backend dependencies
+   docker compose up -d neo4j
    poetry install
-   
-   # Verify Z3 installation works
    poetry run python scripts/verify_z3_install.py
-   
-   # Start local services (Neo4j, etc.)
-   docker-compose up -d
-   
-   # Run local database seed script
-   poetry run python scripts/seed_rbi_rules.py
-   
-   # Run the FastAPI API server
    poetry run uvicorn src.api.main:app --reload --port 8000
    ```
 
-3. **Frontend Setup**
+4. Start the frontend.
+
    ```bash
    cd frontend
-   npm install
-   npm run dev  # Vite launches the UI at http://localhost:5173
+   npm ci
+   npm run dev
    ```
 
-4. **Run Proof of Concept (PoC)**
-   Execute the standalone Stage 0 script that verifies Z3 and LLM extraction end-to-end:
-   ```bash
-   poetry run python scripts/poc_pipeline.py
-   ```
+   The app is at http://localhost:5173 and the API documentation at http://localhost:8000/docs.
 
----
+5. Create users. Each person needs a Supabase Auth account and a row in the `users` table with a role of `compliance_officer`, `ml_engineer` or `cto`. For two demo accounts, run `poetry run python scripts/create_demo_users.py`.
 
-## 🤖 GitHub Actions Workflows
+6. Create sample models: `poetry run python scripts/make_demo_models.py`.
 
-We use three GitHub Actions workflows under `.github/workflows/` to orchestrate our pipeline:
+## The Z3 approach
 
-1. **CI (`ci.yml`)**: Triggered on every `push` and `pull_request` to the `main` branch.
-   * Installs Python/Node environments.
-   * Runs Python linting (`ruff`) and strict typing checks (`mypy`) in `/src`.
-   * Runs pytest for backend compliance and solver tests.
-   * Runs ESLint and Vitest suite in `/frontend`.
-2. **CD (`cd.yml`)**: Triggered automatically after a successful `CI` workflow run on the `main` branch.
-   * Deploys the built application to production (Railway stub).
-3. **CT (Continuous Training) (`ct.yml`)**: Manually triggered or triggered on regulation change events via `workflow_dispatch`.
-   * Accepts a `regulation_version` input.
-   * Retrains the model (classical XGBoost utilizing compliance constraint loss terms) on a Kaggle P100 GPU and registers the new artifact in MLflow.
+A language model can draft a rule but cannot be trusted to decide whether a model complies. Rego therefore uses an SMT solver, Z3 from Microsoft Research, for every compliance decision. SMT solvers are used in practice to check device drivers, cloud access policies and hardware designs.
 
----
+A rule states the condition a compliant model must meet, for example that the weight of a prohibited feature is exactly zero. A model is described by the weight it gives each feature. Z3 searches for a way the rule could be false given those weights:
 
-## 📁 Project Structure
+- If no such way exists (unsatisfiable), the model is proved compliant.
+- If one exists (satisfiable), Z3 returns a counterexample, and the report names the rule and the features involved.
+- If Z3 cannot decide, the result is treated as not compliant. Every gate fails closed.
 
-```text
-rego/
-├── .github/workflows/      # CI/CD/CT automation pipelines
-├── docs/                   # Internal project requirements and rule sheets
-├── src/                    # Backend source code (FastAPI + Z3/Neo4j/Supabase logic)
-│   ├── api/                # FastAPI app definitions, dependencies, schemas & routers
-│   ├── features/           # UI-associated endpoint logic
-│   ├── lib/                # Infrastructure clients (Z3, OpenRouter, Neo4j, Supabase, MLflow)
-│   └── pipeline/           # Core compliance logic (ingestion, ci, ct, cd)
-├── frontend/               # React + TypeScript Vite frontend
-│   └── src/
-│       ├── features/       # Role-based dashboard interfaces (CO layout & MLE layout)
-│       ├── components/     # Shared UI components and primitives
-│       ├── lib/            # API clients, WS event handlers, and auth hooks
-│       └── store/          # Zustand state stores
-├── scripts/                # Utility scripts (seeding rules, verifying install, PoC runner)
-├── notebooks/              # CT retraining notebooks running on Kaggle GPU
-├── tests/                  # Integration and E2E test files
-├── Dockerfile              # Multi-stage Docker builder for FastAPI
-├── docker-compose.yml      # Multi-container local service configuration
-└── pyproject.toml          # Poetry dependencies and lint configuration
+The LLM is only ever used offline to draft a rule. It is never used inside a gate or a deployment decision. A person approves the meaning of each rule before it takes effect.
+
+## Adding a rule
+
+1. Sign in as a compliance officer and open Add Regulation.
+2. Enter the section (letters, digits and . ( ) _ - only) and paste the text of the provision.
+3. Wait for extraction, usually 10 to 30 seconds, then open the approval queue.
+4. Compare the source text with the plain-English meaning and the exact condition shown in words.
+5. Approve by choosing Yes, typing ACTIVATE, and confirming. Rejecting also takes two steps.
+
+A rule the validator rejects appears under Could not be verified with a plain-English reason.
+
+## Submitting a model
+
+A model is submitted as a folder inside `MODEL_ARTIFACT_DIR` containing two files.
+
+`profile.json` lists the weight of each feature, named `<feature>_weight`:
+
+```json
+{"weights": {"age_weight": 0.2, "income_weight": 0.4, "contact_list_weight": 0.0}}
 ```
 
----
+A feature that is not listed counts as weight zero.
 
-## 📝 License
+`evaluation.json` holds held-out predictions used by the fairness and regression gates:
 
-This project is licensed under the MIT License.
+```json
+{"y_true": [1, 0], "y_pred": [1, 0], "baseline_y_pred": [1, 0], "groups": ["a", "b"]}
+```
+
+As an ML engineer, open Pipeline Monitor, enter the folder name, and choose Run compliance gates. When all four gates are compliant, a Deploy button appears.
+
+## Proof certificates
+
+A certificate records the model version, every regulation version it was certified against, and a proof hash. The hash is a SHA-256 over the model files and, for each active rule, its version and a hash of its formula. The same model checked against the same rules always gives the same hash, so deploying it twice is refused with a 409. A new regulation version gives a new hash and so a new certificate.
+
+Each certificate is signed with HMAC-SHA256 over its id, model version, regulation versions and proof hash, using `PROOF_CERT_SECRET`. The signature is checked on every read. A certificate that fails the check is never served: the API returns 422 and the list marks it as failed. There is no route to create, change or delete a certificate, and the database refuses updates and deletes.
+
+An auditor needs no account. To check a hash:
+
+```bash
+curl -X POST https://YOUR-HOST/api/certificates/verify \
+  -H "Content-Type: application/json" \
+  -d '{"cert_id": "<certificate id>", "proof_hash": "<hash from the downloaded file>"}'
+```
+
+The reply is `{"valid": true, ...}` or `{"valid": false, "explanation": "..."}`. This route is limited to 30 requests a minute per client address.
+
+The compliance officer's screen does not display the hash. They can copy it with Copy hash, and the downloaded JSON file contains it.
+
+## API summary
+
+All routes are under `/api`, except the health checks, which are also at `/health/`.
+
+| Route | Roles |
+|:---|:---|
+| `POST /regulations/`, `POST /regulations/{id}/approve`, `POST /regulations/{id}/reject` | compliance officer |
+| `GET /regulations/`, `GET /regulations/jobs/{id}` | compliance officer, CTO |
+| `POST /pipeline/submit`, `POST /pipeline/deploy`, `POST /pipeline/trigger-ct` | ML engineer |
+| `GET /pipeline/status`, `GET /pipeline/drift-log`, `GET /models/diff`, WebSocket `/pipeline/events` | ML engineer, CTO |
+| `GET /models/`, `GET /models/{version}/lineage`, `GET /certificates/`, `GET /certificates/{id}` | all roles |
+| `POST /certificates/verify`, `GET /health/`, `GET /health/z3` | public |
+
+## GitHub Actions workflows
+
+| Workflow | Trigger | What it does |
+|:---|:---|:---|
+| `ci.yml` | every push and pull request to main | Jobs: Python lint (ruff) and types (mypy); Python tests with a 90 percent coverage gate; frontend lint and unit tests; browser tests; security (bandit, a dependency audit of `poetry.lock`, and `npm audit`) |
+| `cd.yml` | after CI succeeds on main | Placeholder. Deployment happens through the API, not this workflow |
+| `ct.yml` | every 5 minutes, or manually with a regulation version | Detects a new active regulation version, retrains on Kaggle with the prohibited features excluded, logs to MLflow, then runs the CI gates and fails if any gate fails |
+
+## Security
+
+- Every route requires a login except the health checks and certificate verification. A missing or invalid token is always the same 401 with no detail.
+- Roles are enforced in the API, not only in the interface. A test lists every route with its allowed roles and fails if a route is added without an entry.
+- Regulatory text is stripped of HTML and control characters and limited to 50,000 characters before it can reach the LLM.
+- The service key never leaves the backend. Row level security gives anonymous users no access and signed-in users read-only access.
+- The compliance officer interface never shows rule identifiers, proof hashes or solver output.
+
+## Project structure
+
+```
+src/api/            FastAPI application, routes, schemas, rate limiting, static file serving
+src/lib/            clients for Z3, the LLM, Neo4j, Supabase and MLflow, and the model file loader
+src/pipeline/       ingestion, ci (gates), ct (retraining), cd (certificates and deployment)
+src/features/       logic used by the dashboards, such as the model diff
+frontend/           React and TypeScript application, unit tests, and browser tests
+supabase/           database migrations
+notebooks/          the Kaggle retraining notebook
+scripts/            demo, seeding, audit and install-check scripts
+tests/integration/  end-to-end API tests and a stateful in-memory test environment
+docs/               project documents
+```
+
+## Documentation
+
+- `docs/DEPLOY.md`: deploying to Railway, with a checklist.
+- `docs/DEMO.md`: demo script, sample rules and accounts.
+- `docs/TECH.md`: stack, conventions and decisions.
+- `docs/TESTING.md`: test strategy and the status of the manual checklist.
+- `docs/AIRULES.md`: the rules every contributor and tool follows.
+
+## Known limitations
+
+- The sample rule used in early development, that a lending model must not use PIN codes, is illustrative. It is not a provision of the RBI Digital Lending Directions. The demo uses real provisions instead.
+- Railway cannot split traffic by percentage. The canary deploys to a separate service that receives no live traffic.
+- Re-deploying a model that was already certified against the same rules is refused. A rollback path with its own certificate is not built.
+- The confidence score described in the design documents is not implemented. Reviewers rely on the plain-English meaning and the exact condition.
+- Fairness and regression gates use simple pure-Python metrics, not Evidently. Neither Evidently nor a training dataset is included, so the Kaggle notebook needs a dataset you provide.
+- Frontend build tools (Vite, Vitest, Tailwind) have known advisories that need major version upgrades. None of them is shipped to the browser.
+- No LICENSE file is present yet. Add one before publishing.

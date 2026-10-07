@@ -17,7 +17,7 @@ def test_a_compliant_model_is_certified_with_its_regulation_versions_and_deploye
 ) -> None:
     certificate_id = certified_deployment(api, world)
 
-    cert = api.get(f"/certificates/{certificate_id}", headers=CO_HEADERS)
+    cert = api.get(f"/api/certificates/{certificate_id}", headers=CO_HEADERS)
     assert cert.status_code == 200
     body = cert.json()
     assert body["model_version"] == "good-1"
@@ -26,7 +26,7 @@ def test_a_compliant_model_is_certified_with_its_regulation_versions_and_deploye
     assert len(body["proof_hash"]) == 64
 
     assert world.deployer.calls == ["canary", "promote"]
-    lineage = api.get("/models/good-1/lineage", headers=CO_HEADERS).json()
+    lineage = api.get("/api/models/good-1/lineage", headers=CO_HEADERS).json()
     assert [r["rule_id"] for r in lineage["regulation_versions"]] == ["RBI-4.1"]
 
 
@@ -64,7 +64,7 @@ def test_there_is_no_route_to_create_change_or_delete_a_certificate(
 ) -> None:
     certificate_id = certified_deployment(api, world)
     for method in ("post", "put", "patch", "delete"):
-        for path in ("/certificates/", f"/certificates/{certificate_id}"):
+        for path in ("/api/certificates/", f"/api/certificates/{certificate_id}"):
             response = api.request(method.upper(), path, headers=MLE_HEADERS, json={})
             assert response.status_code in (404, 405, 422), (method, path)
     assert len(world.certificates.rows) == 1

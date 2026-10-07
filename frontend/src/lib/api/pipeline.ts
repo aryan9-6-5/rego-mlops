@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api/client';
 import { supabase } from '@/lib/auth/supabase';
+import { socketUrl } from './socketUrl';
 import {
   applyGateEvent,
   isGateEvent,
@@ -12,8 +13,7 @@ const RUN_KEY = ['pipeline-run'] as const;
 const RECONNECT_MS = 3000;
 const FALLBACK_POLL_MS = 5000;
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000';
-const WS_URL = `${API_BASE.replace(/^http/, 'ws')}/pipeline/events`;
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api';
 
 export function usePipelineRun() {
   return useQuery({
@@ -58,7 +58,7 @@ export function usePipelineSocket(): boolean {
       const { data } = await supabase.auth.getSession();
       if (stopped || !data.session) return;
       const token = data.session.access_token;
-      socket = new WebSocket(WS_URL);
+      socket = new WebSocket(socketUrl(API_BASE, window.location));
       socket.onopen = () => {
         socket?.send(JSON.stringify({ token }));
         setConnected(true);

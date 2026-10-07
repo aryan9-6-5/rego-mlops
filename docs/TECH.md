@@ -278,6 +278,13 @@ Error Prevention covers Rego's own deploy path. Someone with Railway access can 
 - End-to-end: `@playwright/test` (listed above) drives the real frontend in the Chrome that is already installed (`channel: 'chrome'`, override with `E2E_BROWSER_CHANNEL`), so no browser is downloaded. The API and Supabase are stubbed in `frontend/tests/e2e/support.ts`. These tests prove the browser behaviour; they do not prove the backend, a real login, or Supabase Realtime.
 - `tests/integration/test_frontend_backend_constants.py` fails if the status constants in `constants.ts` drift from the Pydantic enums or the database enum.
 
+**Deployment shape and accessibility (Stage 6)**
+- One container serves the API and the built web app. The API is under `/api`; `/health/` is also served at the root for the platform health check. Any other path returns `index.html`, so deep links and reloads work, while an unknown `/api` path stays a 404. The web app is built with `VITE_API_BASE_URL=/api`, so it needs no CORS and the WebSocket address is derived from the page origin (`socketUrl.ts`).
+- The image has three stages (build the frontend, install runtime Python dependencies with `poetry install --only main`, runtime as a non-root user). See `docs/DEPLOY.md`. CI builds the image and probes the running container.
+- Pages are loaded on first use (`React.lazy`), which brought the initial JavaScript from 173 KB to 122 KB gzipped. `recharts` is listed as a dependency but no chart exists yet, so it is not in any bundle.
+- Accessibility is checked with axe-core through Playwright (`frontend/tests/e2e/accessibility.spec.ts`): WCAG 2.0 and 2.1 A and AA rules on every page for both roles, the review card steps, form errors, keyboard-only approval, and reduced motion. This is the engine behind the Lighthouse accessibility score, but Lighthouse itself has not been run. The audit found and fixed low-contrast small text, an unlabelled file input, white-on-green buttons below 4.5:1 contrast, and missing reduced-motion handling.
+- `@axe-core/playwright` is a dev dependency added for this audit.
+
 ## 5. Pinned Versions (Lockfile)
 
 These are the approved versions. Do not upgrade without updating this file and re-running full CI.

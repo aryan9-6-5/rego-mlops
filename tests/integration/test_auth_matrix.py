@@ -21,23 +21,25 @@ PUBLIC = None
 POLICY: dict[tuple[str, str], set[str] | None] = {
     ("GET", "/health/"): PUBLIC,
     ("GET", "/health/z3"): PUBLIC,
-    ("POST", "/certificates/verify"): PUBLIC,
-    ("GET", "/regulations/"): CO_CTO,
-    ("POST", "/regulations/"): CO,
-    ("GET", "/regulations/jobs/{job_id}"): CO_CTO,
-    ("POST", "/regulations/{regulation_id}/approve"): CO,
-    ("POST", "/regulations/{regulation_id}/reject"): CO,
-    ("GET", "/certificates/"): ANY,
-    ("GET", "/certificates/{certificate_id}"): ANY,
-    ("GET", "/models/"): ANY,
-    ("GET", "/models/{version}/lineage"): ANY,
-    ("GET", "/models/diff"): MLE_CTO,
-    ("POST", "/models/"): MLE,
-    ("GET", "/pipeline/status"): MLE_CTO,
-    ("GET", "/pipeline/drift-log"): MLE_CTO,
-    ("POST", "/pipeline/submit"): MLE,
-    ("POST", "/pipeline/deploy"): MLE,
-    ("POST", "/pipeline/trigger-ct"): MLE,
+    ("GET", "/api/health/"): PUBLIC,
+    ("GET", "/api/health/z3"): PUBLIC,
+    ("POST", "/api/certificates/verify"): PUBLIC,
+    ("GET", "/api/regulations/"): CO_CTO,
+    ("POST", "/api/regulations/"): CO,
+    ("GET", "/api/regulations/jobs/{job_id}"): CO_CTO,
+    ("POST", "/api/regulations/{regulation_id}/approve"): CO,
+    ("POST", "/api/regulations/{regulation_id}/reject"): CO,
+    ("GET", "/api/certificates/"): ANY,
+    ("GET", "/api/certificates/{certificate_id}"): ANY,
+    ("GET", "/api/models/"): ANY,
+    ("GET", "/api/models/{version}/lineage"): ANY,
+    ("GET", "/api/models/diff"): MLE_CTO,
+    ("POST", "/api/models/"): MLE,
+    ("GET", "/api/pipeline/status"): MLE_CTO,
+    ("GET", "/api/pipeline/drift-log"): MLE_CTO,
+    ("POST", "/api/pipeline/submit"): MLE,
+    ("POST", "/api/pipeline/deploy"): MLE,
+    ("POST", "/api/pipeline/trigger-ct"): MLE,
 }
 PROTECTED = [(k, v) for k, v in POLICY.items() if v is not None]
 PUBLIC_ROUTES = [k for k, v in POLICY.items() if v is None]
@@ -107,7 +109,7 @@ def test_public_routes_need_no_token(client: TestClient, route: tuple[str, str])
 
 def test_a_failed_login_reveals_nothing(client: TestClient) -> None:
     response = client.get(
-        "/regulations/", headers={"Authorization": "Bearer boom-token"}
+        "/api/regulations/", headers={"Authorization": "Bearer boom-token"}
     )
     assert response.status_code == 401
     assert response.json() == {"detail": "Could not validate credentials."}
@@ -117,23 +119,23 @@ def test_a_failed_login_reveals_nothing(client: TestClient) -> None:
 
 def test_a_forbidden_response_does_not_list_roles(client: TestClient) -> None:
     response = client.post(
-        "/regulations/x/approve", headers={"Authorization": "Bearer mle-token"}, json={}
+        "/api/regulations/x/approve", headers={"Authorization": "Bearer mle-token"}, json={}
     )
     assert response.status_code == 403
     assert "compliance_officer" not in response.text
 
 
 def test_the_certificate_routes_have_no_write_methods() -> None:
-    methods = {m for (m, p) in registered() if p.startswith("/certificates")}
+    methods = {m for (m, p) in registered() if p.startswith("/api/certificates")}
     assert methods == {"GET", "POST"}
-    assert ("POST", "/certificates/") not in registered()
+    assert ("POST", "/api/certificates/") not in registered()
 
 
 def test_the_event_socket_rejects_missing_unknown_and_wrong_role_tokens(
     client: TestClient,
 ) -> None:
     for message in ({}, {"token": "unknown-token"}, {"token": "co-token"}):
-        with client.websocket_connect("/pipeline/events") as socket:
+        with client.websocket_connect("/api/pipeline/events") as socket:
             socket.send_json(message)
             with pytest.raises(WebSocketDisconnect) as closed:
                 socket.receive_text()

@@ -82,7 +82,7 @@ export const RuleReviewCard: React.FC<Props> = ({ regulation, onDone }) => {
           <button
             type="button"
             onClick={() => setStep('confirm-approve')}
-            className="h-12 rounded-lg bg-emerald-600 px-6 font-medium text-white hover:bg-emerald-500"
+            className="h-12 rounded-lg bg-emerald-700 px-6 font-medium text-white hover:bg-emerald-600"
           >
             Yes, approve rule
           </button>
@@ -118,7 +118,7 @@ export const RuleReviewCard: React.FC<Props> = ({ regulation, onDone }) => {
               type="button"
               disabled={typed !== ACTIVATE_CONFIRMATION_WORD || busy}
               onClick={confirmApprove}
-              className="h-12 rounded-lg bg-emerald-600 px-6 font-medium text-white enabled:hover:bg-emerald-500 disabled:opacity-40"
+              className="h-12 rounded-lg bg-emerald-700 px-6 font-medium text-white enabled:hover:bg-emerald-600 disabled:opacity-40"
             >
               {approve.isPending
                 ? 'Activating rule and updating knowledge graph...'

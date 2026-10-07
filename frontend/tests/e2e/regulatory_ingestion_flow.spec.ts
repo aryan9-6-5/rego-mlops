@@ -24,21 +24,21 @@ test('compliance officer pastes a regulation, reviews the rule and approves it i
   let extracted = false;
   let approved = false;
   api
-    .on((c) => (c.method === 'POST' && c.path === '/regulations/' ? { status: 202, body: { job_id: 'job-1' } } : undefined))
+    .on((c) => (c.method === 'POST' && c.path === '/api/regulations/' ? { status: 202, body: { job_id: 'job-1' } } : undefined))
     .on((c) => {
-      if (c.path !== '/regulations/jobs/job-1') return undefined;
+      if (c.path !== '/api/regulations/jobs/job-1') return undefined;
       extracted = true;
       return { body: { job_id: 'job-1', status: 'complete', error: null } };
     })
     .on((c) => {
-      if (c.method === 'GET' && c.path === '/regulations/') {
+      if (c.method === 'GET' && c.path === '/api/regulations/') {
         const rules = extracted ? [pendingRule(approved ? 'active' : 'pending_approval')] : [];
         return { body: rules };
       }
       return undefined;
     })
     .on((c) => {
-      if (c.method === 'POST' && c.path === '/regulations/reg-1/approve') {
+      if (c.method === 'POST' && c.path === '/api/regulations/reg-1/approve') {
         approved = true;
         return { body: pendingRule('active') };
       }
@@ -52,14 +52,14 @@ test('compliance officer pastes a regulation, reviews the rule and approves it i
   await page.getByRole('button', { name: 'Extract rules' }).click();
   await expect(page.getByText('Enter the section, for example 4.1.')).toBeVisible();
   await expect(page.getByText('Paste the regulatory text or drop a text file.')).toBeVisible();
-  expect(api.count('POST', '/regulations/')).toBe(0);
+  expect(api.count('POST', '/api/regulations/')).toBe(0);
 
   await page.getByPlaceholder('4.1').fill('4.1');
   await page.getByLabel('Regulatory text').fill(SOURCE);
   await page.getByRole('button', { name: 'Extract rules' }).click();
 
   await expect(page.getByText('Rules extracted')).toBeVisible();
-  expect(api.calls.find((c) => c.method === 'POST' && c.path === '/regulations/')?.body).toEqual({
+  expect(api.calls.find((c) => c.method === 'POST' && c.path === '/api/regulations/')?.body).toEqual({
     section: '4.1',
     content: SOURCE,
   });
@@ -96,13 +96,13 @@ test('an LLM failure shows inline in the compliance officer interface and does n
 }) => {
   const api = new StubApi();
   api
-    .on((c) => (c.method === 'POST' && c.path === '/regulations/' ? { status: 202, body: { job_id: 'job-2' } } : undefined))
+    .on((c) => (c.method === 'POST' && c.path === '/api/regulations/' ? { status: 202, body: { job_id: 'job-2' } } : undefined))
     .on((c) =>
-      c.path === '/regulations/jobs/job-2'
+      c.path === '/api/regulations/jobs/job-2'
         ? { body: { job_id: 'job-2', status: 'failed', error: 'Rule extraction failed. Please try again or check the regulatory text.' } }
         : undefined,
     )
-    .on((c) => (c.method === 'GET' && c.path === '/regulations/' ? { body: [] } : undefined));
+    .on((c) => (c.method === 'GET' && c.path === '/api/regulations/' ? { body: [] } : undefined));
   await api.install(page);
   await signIn(page, 'compliance_officer');
 

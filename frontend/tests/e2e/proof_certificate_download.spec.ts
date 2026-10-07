@@ -37,15 +37,15 @@ test('a model is deployed by the engineer and the compliance officer downloads i
   let deployed = false;
   const api = new StubApi();
   api
-    .on((c) => (c.path === '/pipeline/status' ? { body: COMPLIANT_RUN } : undefined))
+    .on((c) => (c.path === '/api/pipeline/status' ? { body: COMPLIANT_RUN } : undefined))
     .on((c) => {
-      if (c.method === 'POST' && c.path === '/pipeline/deploy') {
+      if (c.method === 'POST' && c.path === '/api/pipeline/deploy') {
         deployed = true;
         return { status: 201, body: { model_version: 'v2.1.4', certificate_id: 'cert-1', status: 'promoted' } };
       }
       return undefined;
     })
-    .on((c) => (c.path === '/certificates/' ? { body: deployed ? [CERTIFICATE] : [] } : undefined));
+    .on((c) => (c.path === '/api/certificates/' ? { body: deployed ? [CERTIFICATE] : [] } : undefined));
 
   // --- ML engineer deploys -------------------------------------------------
   const engineer = await browser.newContext({ permissions: ['clipboard-read', 'clipboard-write'] });
@@ -54,7 +54,7 @@ test('a model is deployed by the engineer and the compliance officer downloads i
   await signIn(mle, 'ml_engineer');
   await mle.goto('/pipeline');
   await mle.getByRole('button', { name: 'Deploy this model' }).click();
-  expect(api.count('POST', '/pipeline/deploy')).toBe(0); // the first click only asks to confirm
+  expect(api.count('POST', '/api/pipeline/deploy')).toBe(0); // the first click only asks to confirm
   await expect(mle.getByText(/A certificate cannot be changed or removed/)).toBeVisible();
   await mle.getByRole('button', { name: 'Confirm deploy' }).click();
   await expect(mle.getByRole('status')).toContainText('Certificate cert-1 issued');
@@ -94,7 +94,7 @@ test('a model is deployed by the engineer and the compliance officer downloads i
 test('a tampered certificate is shown as failed and cannot be downloaded', async ({ page }) => {
   const api = new StubApi();
   api.on((c) =>
-    c.path === '/certificates/'
+    c.path === '/api/certificates/'
       ? {
           body: [
             { ...CERTIFICATE, verification: 'tampered', proof_hash: '', hmac_signature: '', regulation_versions: [] },
@@ -112,7 +112,7 @@ test('a tampered certificate is shown as failed and cannot be downloaded', async
 
 test('with no certificates the page explains why instead of showing nothing', async ({ page }) => {
   const api = new StubApi();
-  api.on((c) => (c.path === '/certificates/' ? { body: [] } : undefined));
+  api.on((c) => (c.path === '/api/certificates/' ? { body: [] } : undefined));
   await api.install(page);
   await signIn(page, 'compliance_officer');
   await page.goto('/certificates');

@@ -77,6 +77,27 @@ jobs:
       - name: Run Playwright (uses the Chrome on the runner)
         run: npx playwright test
 
+  docker-image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the production image
+        run: >
+          docker build -t rego-ci
+          --build-arg VITE_SUPABASE_URL=http://127.0.0.1:54321
+          --build-arg VITE_SUPABASE_ANON_KEY=ci-anon-key .
+      - name: Start it with placeholder settings and probe it
+        run: |
+          docker run -d --name rego -p 8000:8000             -e SUPABASE_URL=http://127.0.0.1:54321 -e SUPABASE_SERVICE_KEY=ci-service-key             -e NEO4J_URI=bolt://127.0.0.1:1 -e NEO4J_USERNAME=neo4j -e NEO4J_PASSWORD=ci             rego-ci
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:8000/health/ && break; sleep 2; done
+          curl -sf http://127.0.0.1:8000/health/ | grep '"status":"ok"'
+          curl -sf http://127.0.0.1:8000/health/z3 | grep 'z3_version'
+          curl -sf http://127.0.0.1:8000/ | grep 'id="root"'
+          curl -sf http://127.0.0.1:8000/approval-queue | grep 'id="root"'
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/api/regulations/)" = "401"
+          docker logs rego | tail -5
+          docker exec rego id -u | grep -v '^0$'
+
   security:
     runs-on: ubuntu-latest
     steps:

@@ -19,7 +19,7 @@ def test_trigger_ct_dispatches_the_workflow_for_the_given_version(
         sent.append(version)
 
     monkeypatch.setattr(trigger, "dispatch_ct_workflow", fake_dispatch)
-    response = api.post("/pipeline/trigger-ct", json={"regulation_version": "RBI-4.1-x"}, headers=MLE_HEADERS)
+    response = api.post("/api/pipeline/trigger-ct", json={"regulation_version": "RBI-4.1-x"}, headers=MLE_HEADERS)
     assert response.status_code == 202
     assert sent == ["RBI-4.1-x"]
 
@@ -31,7 +31,7 @@ def test_trigger_ct_reports_a_dispatch_failure_without_internals(
         raise trigger.TriggerError("Could not reach GitHub.")
 
     monkeypatch.setattr(trigger, "dispatch_ct_workflow", failing)
-    response = api.post("/pipeline/trigger-ct", json={"regulation_version": "v"}, headers=MLE_HEADERS)
+    response = api.post("/api/pipeline/trigger-ct", json={"regulation_version": "v"}, headers=MLE_HEADERS)
     assert response.status_code == 502
     assert response.json()["detail"] == "Could not reach GitHub."
 
@@ -81,17 +81,17 @@ def test_deploying_a_model_that_does_not_exist_is_refused(api: TestClient, world
 
 def test_the_model_list_and_lineage_follow_the_deployment(api: TestClient, world: World) -> None:
     certified_deployment(api, world)
-    (model,) = api.get("/models/", headers=CO_HEADERS).json()
+    (model,) = api.get("/api/models/", headers=CO_HEADERS).json()
     assert model["model_version"] == "good-1"
     assert [r["status"] for r in model["regulation_versions"]] == ["active"]
-    assert api.get("/models/unknown/lineage", headers=CO_HEADERS).status_code == 404
+    assert api.get("/api/models/unknown/lineage", headers=CO_HEADERS).status_code == 404
 
 
 def test_lineage_keeps_a_superseded_regulation_visible(api: TestClient, world: World) -> None:
     certified_deployment(api, world)
     world.llm.formulas = [NEEDS_INCOME]
     activate_rule(api)
-    lineage = api.get("/models/good-1/lineage", headers=CO_HEADERS).json()
+    lineage = api.get("/api/models/good-1/lineage", headers=CO_HEADERS).json()
     assert [r["status"] for r in lineage["regulation_versions"]] == ["superseded"]
 
 
@@ -99,7 +99,7 @@ def test_the_drift_log_lists_active_and_superseded_versions(api: TestClient, wor
     activate_rule(api)
     world.llm.formulas = [NEEDS_INCOME]
     activate_rule(api)
-    log = api.get("/pipeline/drift-log", headers=MLE_HEADERS).json()
+    log = api.get("/api/pipeline/drift-log", headers=MLE_HEADERS).json()
     assert sorted(entry["status"] for entry in log) == ["active", "superseded"]
 
 
@@ -109,20 +109,20 @@ def test_the_model_diff_flags_a_change_that_touches_an_active_rule(
     activate_rule(api)
     world.bundle("old", {"income_weight": 0.4})
     world.bundle("new", {"income_weight": 0.4, "pin_code_weight": 0.3})
-    diff = api.get("/models/diff", params={"from_version": "old", "to_version": "new"}, headers=MLE_HEADERS)
+    diff = api.get("/api/models/diff", params={"from_version": "old", "to_version": "new"}, headers=MLE_HEADERS)
     assert diff.status_code == 200
     (change,) = diff.json()["changes"]
     assert (change["feature"], change["kind"], change["affects_rules"]) == (
         "pin_code", "added", ["RBI-4.1"],
     )
-    assert api.get("/models/diff", params={"from_version": "old", "to_version": "gone"}, headers=CTO_HEADERS).status_code == 404
-    assert api.get("/models/diff", params={"from_version": "../x", "to_version": "new"}, headers=MLE_HEADERS).status_code == 422
+    assert api.get("/api/models/diff", params={"from_version": "old", "to_version": "gone"}, headers=CTO_HEADERS).status_code == 404
+    assert api.get("/api/models/diff", params={"from_version": "../x", "to_version": "new"}, headers=MLE_HEADERS).status_code == 422
 
 
 def test_register_model_is_for_ml_engineers_only(api: TestClient) -> None:
     body = {"name": "m", "version": "v1", "accuracy": 0.9}
-    assert api.post("/models/", json=body, headers=MLE_HEADERS).json()["status"] == "registered"
-    assert api.post("/models/", json=body, headers=CO_HEADERS).status_code == 403
+    assert api.post("/api/models/", json=body, headers=MLE_HEADERS).json()["status"] == "registered"
+    assert api.post("/api/models/", json=body, headers=CO_HEADERS).status_code == 403
 
 
 def test_health_checks_need_no_login(api: TestClient) -> None:
@@ -136,9 +136,9 @@ def test_health_checks_need_no_login(api: TestClient) -> None:
 @pytest.mark.parametrize(
     ("method", "path", "headers"),
     [
-        ("GET", "/models/", CO_HEADERS),
-        ("GET", "/pipeline/drift-log", MLE_HEADERS),
-        ("GET", "/models/x/lineage", CO_HEADERS),
+        ("GET", "/api/models/", CO_HEADERS),
+        ("GET", "/api/pipeline/drift-log", MLE_HEADERS),
+        ("GET", "/api/models/x/lineage", CO_HEADERS),
     ],
 )
 def test_a_neo4j_outage_is_503_with_a_plain_message_and_no_internals(

@@ -12,22 +12,22 @@ TEXT = {"section": "4.1", "content": "Models shall not use PIN codes.", "jurisdi
 
 def ingest(api: TestClient, **overrides: str) -> list[dict[str, Any]]:
     """CO pastes text. Returns the rules now listed for review."""
-    response = api.post("/regulations/", json={**TEXT, **overrides}, headers=CO_HEADERS)
+    response = api.post("/api/regulations/", json={**TEXT, **overrides}, headers=CO_HEADERS)
     assert response.status_code == 202, response.text
-    job = api.get(f"/regulations/jobs/{response.json()['job_id']}", headers=CO_HEADERS)
+    job = api.get(f"/api/regulations/jobs/{response.json()['job_id']}", headers=CO_HEADERS)
     assert job.json()["status"] == "complete", job.json()
-    return api.get("/regulations/", headers=CO_HEADERS).json()  # type: ignore[no-any-return]
+    return api.get("/api/regulations/", headers=CO_HEADERS).json()  # type: ignore[no-any-return]
 
 
 def pending(api: TestClient) -> dict[str, Any]:
-    rules = api.get("/regulations/", headers=CO_HEADERS).json()
+    rules = api.get("/api/regulations/", headers=CO_HEADERS).json()
     waiting = [r for r in rules if r["status"] == "pending_approval"]
     assert len(waiting) == 1, rules
     return waiting[0]  # type: ignore[no-any-return]
 
 
 def approve(api: TestClient, regulation_id: str) -> Any:
-    return api.post(f"/regulations/{regulation_id}/approve", headers=CO_HEADERS)
+    return api.post(f"/api/regulations/{regulation_id}/approve", headers=CO_HEADERS)
 
 
 def activate_rule(api: TestClient) -> dict[str, Any]:
@@ -41,13 +41,13 @@ def activate_rule(api: TestClient) -> dict[str, Any]:
 
 def run_ci(api: TestClient, model: str) -> dict[str, Any]:
     """MLE submits a bundle. The background run finishes before the call returns."""
-    response = api.post("/pipeline/submit", json={"artifact_path": model}, headers=MLE_HEADERS)
+    response = api.post("/api/pipeline/submit", json={"artifact_path": model}, headers=MLE_HEADERS)
     assert response.status_code == 202, response.text
-    return api.get("/pipeline/status", headers=MLE_HEADERS).json()  # type: ignore[no-any-return]
+    return api.get("/api/pipeline/status", headers=MLE_HEADERS).json()  # type: ignore[no-any-return]
 
 
 def deploy(api: TestClient, model: str) -> Any:
-    return api.post("/pipeline/deploy", json={"model_version": model}, headers=MLE_HEADERS)
+    return api.post("/api/pipeline/deploy", json={"model_version": model}, headers=MLE_HEADERS)
 
 
 def certified_deployment(

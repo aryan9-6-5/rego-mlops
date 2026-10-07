@@ -26,7 +26,7 @@ export const DeployPanel: React.FC<Props> = ({ modelVersion }) => {
         <button
           type="button"
           onClick={() => setConfirming(true)}
-          className="rounded-lg bg-emerald-600 px-4 py-2 font-medium text-white hover:bg-emerald-500"
+          className="rounded-lg bg-emerald-700 px-4 py-2 font-medium text-white hover:bg-emerald-600"
         >
           Deploy this model
         </button>
@@ -41,7 +41,7 @@ export const DeployPanel: React.FC<Props> = ({ modelVersion }) => {
               type="button"
               disabled={deploy.isPending}
               onClick={() => deploy.mutate(modelVersion)}
-              className="rounded-lg bg-emerald-600 px-4 py-2 font-medium text-white enabled:hover:bg-emerald-500 disabled:opacity-40"
+              className="rounded-lg bg-emerald-700 px-4 py-2 font-medium text-white enabled:hover:bg-emerald-600 disabled:opacity-40"
             >
               {deploy.isPending
                 ? 'Verifying with Z3, issuing certificate, running canary...'

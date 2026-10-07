@@ -2,6 +2,7 @@ import logging
 import os
 import time
 import uuid
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, Request
@@ -16,6 +17,7 @@ from src.api.routes import (
     pipeline,
     regulations,
 )
+from src.api.spa import mount_frontend
 
 logger = logging.getLogger(__name__)
 
@@ -64,8 +66,18 @@ async def add_process_time_header(request: Request, call_next: Any) -> Any:
     response.headers["X-Request-ID"] = request_id
     return response
 
+# Everything the app does lives under /api. /health also stays at the root for
+# the platform health check (Railway).
+API_PREFIX = "/api"
+for router in (
+    health.router,
+    regulations.router,
+    certificates.router,
+    pipeline.router,
+    models.router,
+):
+    app.include_router(router, prefix=API_PREFIX)
 app.include_router(health.router)
-app.include_router(regulations.router)
-app.include_router(certificates.router)
-app.include_router(pipeline.router)
-app.include_router(models.router)
+
+# The built React app, when there is one (the production image has it).
+mount_frontend(app, Path(os.environ.get("FRONTEND_DIST", "frontend/dist")))

@@ -33,12 +33,12 @@ def test_rejection_keeps_the_rule_out_of_the_graph(
     ingest(api)
     rule = pending(api)
     response = api.post(
-        f"/regulations/{rule['id']}/reject", json={"reason": "wrong intent"}, headers=CO_HEADERS
+        f"/api/regulations/{rule['id']}/reject", json={"reason": "wrong intent"}, headers=CO_HEADERS
     )
     assert response.status_code == 200
     assert response.json()["status"] == "rejected"
     assert world.graph.active() == []
-    listed = {r["status"] for r in api.get("/regulations/", headers=CO_HEADERS).json()}
+    listed = {r["status"] for r in api.get("/api/regulations/", headers=CO_HEADERS).json()}
     assert "active" not in listed and "pending_approval" not in listed
 
 
@@ -46,9 +46,9 @@ def test_a_rule_cannot_be_approved_twice_or_after_rejection(api: TestClient) -> 
     active = activate_rule(api)
     assert approve(api, active["id"]).status_code == 409
 
-    api.post("/regulations/", json=TEXT, headers=CO_HEADERS)
+    api.post("/api/regulations/", json=TEXT, headers=CO_HEADERS)
     second = pending(api)
-    api.post(f"/regulations/{second['id']}/reject", json={}, headers=CO_HEADERS)
+    api.post(f"/api/regulations/{second['id']}/reject", json={}, headers=CO_HEADERS)
     assert approve(api, second["id"]).status_code == 409
 
 
@@ -84,17 +84,17 @@ def test_an_unknown_rule_is_404(api: TestClient) -> None:
 
 def test_an_llm_outage_fails_the_job_cleanly(api: TestClient, world: World) -> None:
     world.llm.fail = True
-    response = api.post("/regulations/", json=TEXT, headers=CO_HEADERS)
+    response = api.post("/api/regulations/", json=TEXT, headers=CO_HEADERS)
     assert response.status_code == 202
-    job = api.get(f"/regulations/jobs/{response.json()['job_id']}", headers=CO_HEADERS).json()
+    job = api.get(f"/api/regulations/jobs/{response.json()['job_id']}", headers=CO_HEADERS).json()
     assert job["status"] == "failed"
     assert "down" not in job["error"]  # no internal detail
-    assert api.get("/regulations/", headers=CO_HEADERS).json() == []
+    assert api.get("/api/regulations/", headers=CO_HEADERS).json() == []
 
 
 def test_the_ml_engineer_cannot_run_the_approval_flow(api: TestClient) -> None:
     ingest(api)
     rule = pending(api)
-    assert api.post(f"/regulations/{rule['id']}/approve", headers=MLE_HEADERS).status_code == 403
-    assert api.post(f"/regulations/{rule['id']}/reject", json={}, headers=MLE_HEADERS).status_code == 403
-    assert api.post("/regulations/", json=TEXT, headers=MLE_HEADERS).status_code == 403
+    assert api.post(f"/api/regulations/{rule['id']}/approve", headers=MLE_HEADERS).status_code == 403
+    assert api.post(f"/api/regulations/{rule['id']}/reject", json={}, headers=MLE_HEADERS).status_code == 403
+    assert api.post("/api/regulations/", json=TEXT, headers=MLE_HEADERS).status_code == 403

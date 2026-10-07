@@ -87,7 +87,7 @@ def test_a_model_without_evaluation_data_fails_closed(api: TestClient, world: Wo
 def test_bad_artifact_paths_are_refused_before_anything_runs(
     api: TestClient, world: World, path: str
 ) -> None:
-    response = api.post("/pipeline/submit", json={"artifact_path": path}, headers=MLE_HEADERS)
+    response = api.post("/api/pipeline/submit", json={"artifact_path": path}, headers=MLE_HEADERS)
     assert response.status_code in (400, 422)
     assert world.events.rows == []
 
@@ -96,5 +96,5 @@ def test_only_engineering_roles_can_see_the_run(api: TestClient, world: World) -
     activate_rule(api)
     world.bundle("good", {"income_weight": 0.4})
     run_ci(api, "good")
-    assert api.get("/pipeline/status", headers=CTO_HEADERS).status_code == 200
-    assert api.get("/pipeline/status", headers=CO_HEADERS).status_code == 403
+    assert api.get("/api/pipeline/status", headers=CTO_HEADERS).status_code == 200
+    assert api.get("/api/pipeline/status", headers=CO_HEADERS).status_code == 403

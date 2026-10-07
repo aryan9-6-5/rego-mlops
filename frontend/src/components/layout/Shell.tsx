@@ -133,7 +133,7 @@ export const Shell: React.FC<ShellProps> = ({ children }) => {
               <p className="text-sm font-medium text-white truncate">
                 {user?.email?.split('@')[0] || 'User'}
               </p>
-              <p className="text-xs text-slate-500 capitalize">{role?.replace('_', ' ')}</p>
+              <p className="text-xs text-slate-400 capitalize">{role?.replace('_', ' ')}</p>
             </div>
             <button 
               onClick={signOut}
