@@ -11,7 +11,7 @@ from z3 import And, Not, Real, Solver, sat
 
 
 def extract_key_legal_terms(text):
-    return ["caste", "religion", "gender", "pin", "locality", "geographic", "proxies"]
+    return ["contact", "call", "media", "telephony", "mobile"]
 
 
 def calculate_confidence(
@@ -66,14 +66,12 @@ def main():
     load_dotenv()
 
     print("=== REGO PROOF OF CONCEPT ===")
-    print("Regulation: RBI Master Direction §4.1 — Digital Lending 2022\n")
+    print("Regulation: RBI Digital Lending Directions, 2025, para 12(i)\n")
 
     RAW_RBI_TEXT = """
-    RBI Master Direction – Digital Lending, 2022, Section 4.1:
-    Regulated Entities shall ensure that the algorithm used for
-    credit underwriting does not use discriminatory data points
-    including caste, religion, gender, or geographic proxies
-    such as PIN codes or locality names.
+    Reserve Bank of India (Digital Lending) Directions, 2025, para 12(i):
+    RE shall also ensure that DLA of RE/LSP desist from accessing mobile phone
+    resources like file and media, contact list, call logs, telephony functions, etc.
     """
 
     client = openai.OpenAI(
@@ -157,14 +155,14 @@ Regulation: {RAW_RBI_TEXT}""",
     # Model feature weights
     income_weight = Real("income_weight")
     credit_score_weight = Real("credit_score_weight")
-    pin_code_weight = Real("pin_code_weight")
+    contact_list_weight = Real("contact_list_weight")
 
     # RBI Rule encoded as constraint
-    rbi_rule = pin_code_weight == 0
+    rbi_rule = contact_list_weight == 0
 
     # Models
-    model_a = And(income_weight > 0, credit_score_weight > 0, pin_code_weight == 0)
-    model_b = And(income_weight > 0, credit_score_weight > 0, pin_code_weight > 0)
+    model_a = And(income_weight > 0, credit_score_weight > 0, contact_list_weight == 0)
+    model_b = And(income_weight > 0, credit_score_weight > 0, contact_list_weight > 0)
 
     def check_model(name, constraints):
         s = Solver()
@@ -176,18 +174,18 @@ Regulation: {RAW_RBI_TEXT}""",
 
     a_compliant, _ = check_model("Model A", model_a)
     if a_compliant:
-        print("  Model A (no pin code):  COMPLIANT ✓")
+        print("  Model A (no contact list):  COMPLIANT ✓")
     else:
-        print("  Model A (no pin code):  VIOLATION ✗")
+        print("  Model A (no contact list):  VIOLATION ✗")
 
-    b_compliant, pin_val = check_model("Model B", model_b)
+    b_compliant, contact_val = check_model("Model B", model_b)
     if not b_compliant:
-        print("  Model B (uses pin code): VIOLATION ✗")
-        print(f"    Counterexample: pin_code_weight = {pin_val:.2f}")
-        print("    Plain English: Model uses PIN code as a feature (weight: 0.30).")
-        print("                   RBI §4.1 prohibits geographic proxies in credit decisions.\n")
+        print("  Model B (uses contact list): VIOLATION ✗")
+        print(f"    Counterexample: contact_list_weight = {contact_val:.2f}")
+        print("    Plain English: Model uses the phone contact list as a feature (weight: 0.30).")
+        print("                   RBI Directions para 12(i) bar access to mobile phone resources such as the contact list.\n")
     else:
-        print("  Model B (uses pin code): COMPLIANT ✓\n")
+        print("  Model B (uses contact list): COMPLIANT ✓\n")
 
     # Step 4: Proof
     print("Step 4: Proof")

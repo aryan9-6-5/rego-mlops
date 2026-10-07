@@ -21,6 +21,9 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 os.environ["FRONTEND_DIST"] = "/nonexistent"  # the API only
 
+sys.path.insert(0, str(ROOT / "scripts"))
+
+from rbi_digital_lending_2025 import PROVISIONS  # noqa: E402
 from tests.integration import fakes  # noqa: E402
 
 _supabase = types.ModuleType("src.lib.supabase_client")
@@ -37,33 +40,6 @@ from tests.integration.world import World  # noqa: E402
 CO = {"Authorization": "Bearer co-token"}
 MLE = {"Authorization": "Bearer mle-token"}
 SECRET = "offline-demo-secret-" + "x" * 32
-
-PROVISIONS = {
-    "12.1": (
-        "RE shall also ensure that DLA of RE/LSP desist from accessing mobile phone "
-        "resources like file and media, contact list, call logs, telephony functions, etc.",
-        "Credit models must not use data taken from the phone's contacts, call logs or media files.",
-        "(declare-const contact_list_weight Real)(declare-const call_logs_weight Real)"
-        "(declare-const media_files_weight Real)"
-        "(assert (and (= contact_list_weight 0) (= call_logs_weight 0) (= media_files_weight 0)))",
-    ),
-    "13.3": (
-        "RE shall ensure that no biometric data is stored/ collected by the "
-        "RE and LSP, unless allowed under extant statutory guidelines.",
-        "Credit models must not use biometric data.",
-        "(declare-const biometric_weight Real)(assert (= biometric_weight 0))",
-    ),
-    "7.1": (
-        "RE shall obtain the necessary information relating to economic profile of the "
-        "borrower with a view to assessing the borrower's creditworthiness before extending "
-        "any loan, including, at a minimum, age, occupation and income details.",
-        "Credit models must take the borrower's age, occupation and income into account.",
-        "(declare-const age_weight Real)(declare-const occupation_weight Real)"
-        "(declare-const income_weight Real)"
-        "(assert (and (> age_weight 0) (> occupation_weight 0) (> income_weight 0)))",
-    ),
-}
-
 
 class DemoLLM:
     """Stands in for the real model: returns the formula for the section asked."""

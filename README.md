@@ -254,14 +254,16 @@ docs/               project documents
 - `docs/DEMO.md`: demo script, sample rules and accounts.
 - `docs/TECH.md`: stack, conventions and decisions.
 - `docs/TESTING.md`: test strategy and the status of the manual checklist.
-- `docs/AIRULES.md`: the rules every contributor and tool follows.
 
 ## Known limitations
 
-- The sample rule used in early development, that a lending model must not use PIN codes, is illustrative. It is not a provision of the RBI Digital Lending Directions. The demo uses real provisions instead.
+- The sample rules (`scripts/rbi_digital_lending_2025.py`) are three real provisions of the RBI Digital Lending Directions, 2025, but turning a provision into a condition on model weights is an interpretation. Paragraph 7(i) is the least literal. Rules in the test suite use invented names such as a PIN code feature as plain test data and are not claims about RBI rules.
 - Railway cannot split traffic by percentage. The canary deploys to a separate service that receives no live traffic.
 - Re-deploying a model that was already certified against the same rules is refused. A rollback path with its own certificate is not built.
 - The confidence score described in the design documents is not implemented. Reviewers rely on the plain-English meaning and the exact condition.
 - Fairness and regression gates use simple pure-Python metrics, not Evidently. Neither Evidently nor a training dataset is included, so the Kaggle notebook needs a dataset you provide.
 - Frontend build tools (Vite, Vitest, Tailwind) have known advisories that need major version upgrades. None of them is shipped to the browser.
-- No LICENSE file is present yet. Add one before publishing.
+
+## License
+
+MIT. See `LICENSE`.

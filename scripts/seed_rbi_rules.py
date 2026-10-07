@@ -1,85 +1,91 @@
+"""Queue three sample RBI provisions for human review.
+
+    poetry run python scripts/seed_rbi_rules.py
+
+Creates three rules from the RBI Digital Lending Directions, 2025 (see
+scripts/rbi_digital_lending_2025.py) in the `regulations` table, each checked by Z3
+and left at `pending_approval`. A compliance officer then approves or rejects them
+in the app, exactly as for a pasted regulation. This script never activates a rule
+and never writes to Neo4j: a rule enters the pipeline only after a human approves
+it. It skips a rule that is already queued or active.
+
+Needs SUPABASE_URL and SUPABASE_SERVICE_KEY. Run it against the project you mean
+to use.
+
+This replaces an earlier version that seeded a "no PIN code" rule labelled as RBI
+section 4.1. That text is not in the Directions.
+"""
+
 import sys
 from pathlib import Path
+from typing import Any
 
-# Add project root to sys.path for lib imports
-project_root = Path(__file__).parent.parent
-sys.path.append(str(project_root))
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.append(str(ROOT))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from src.lib.neo4j_client import neo4j_client  # noqa: E402
+from rbi_digital_lending_2025 import PROVISIONS  # noqa: E402
+
+from src.api.schemas.regulation import RegulationStatus  # noqa: E402
+from src.pipeline.ingestion.approver import transition  # noqa: E402
+from src.pipeline.ingestion.validator import validate  # noqa: E402
+from src.pipeline.ingestion.versioner import new_version  # noqa: E402
+
+S = RegulationStatus
+ALREADY_PRESENT = [
+    S.PENDING_APPROVAL.value,
+    S.APPROVED.value,
+    S.ACTIVE.value,
+]
 
 
-def seed_rbi_rules() -> None:
-    """
-    Seed initial RBI Section 4.1 rules into Neo4j.
-    """
-    print("Starting Neo4j seed process...")
+def seed(store: Any) -> list[tuple[str, str]]:
+    """Queue each provision. Returns (rule_id, outcome) for each."""
+    present = {row["rule_id"] for row in store.list_by_status(ALREADY_PRESENT)}
+    results = []
+    version = new_version()
+    for section, (text, description, formula) in PROVISIONS.items():
+        rule_id = f"RBI-{section}"
+        if rule_id in present:
+            results.append((rule_id, "skipped, already queued or active"))
+            continue
+        check = validate(formula)
+        if check.status is not S.Z3_VALIDATED:
+            # A bad built-in rule is a bug in this file, not something to queue.
+            raise ValueError(f"{rule_id} failed validation: {check.reason}")
+        row = store.insert(
+            {
+                "rule_id": rule_id,
+                "jurisdiction": "India",
+                "source_text": text,
+                "description": description,
+                "formal_logic": formula,
+                "status": S.EXTRACTED.value,
+                "version": version,
+            }
+        )
+        validated = transition(S.EXTRACTED, check.status)
+        queued = transition(validated, S.PENDING_APPROVAL)
+        store.update(row["id"], {"status": queued.value})
+        results.append((rule_id, "queued for review"))
+    return results
 
-    # RBI Section 4.1: Prohibited geographic proxies (e.g., PIN code)
-    # Regulation node
-    regulation_query = """
-    MERGE (r:Regulation {name: 'RBI Master Directions on Digital Lending 2022'})
-    SET r.code = 'RBI/2022-23/112',
-        r.authority = 'Reserve Bank of India',
-        r.status = 'ACTIVE'
-    RETURN r
-    """
 
-    # Rule node
-    rule_query = """
-    MERGE (rule:Rule {id: 'RBI_DL_4.1'})
-    SET rule.title = 'Prohibition of Geographic Proxies',
-        rule.description = 'Lending models must not use geographic proxies ' +
-                           'such as PIN code for credit decisions.',
-        rule.section = '4.1',
-        rule.prohibited_features = ['pin_code', 'postal_code']
-    RETURN rule
-    """
+def main() -> int:
+    import os
 
-    # Relationship
-    relation_query = """
-    MATCH (r:Regulation {name: 'RBI Master Directions on Digital Lending 2022'})
-    MATCH (rule:Rule {id: 'RBI_DL_4.1'})
-    MERGE (r)-[rel:HAS_RULE]->(rule)
-    RETURN count(rel) as rel_count
-    """
+    if not os.environ.get("SUPABASE_URL") or not os.environ.get("SUPABASE_SERVICE_KEY"):
+        sys.stderr.write("SUPABASE_URL and SUPABASE_SERVICE_KEY must be set.\n")
+        return 1
+    from src.lib.supabase_client import supabase_client
+    from src.pipeline.ingestion.store import SupabaseRegulationStore
 
-    try:
-        neo4j_client.connect()
-        print("Connected to Neo4j.")
-
-        print("Seeding Regulation...")
-        reg = neo4j_client.run_query(regulation_query)
-        print(f"Regulation seeded: {reg[0]['r']['name']}")
-
-        print("Seeding Rule...")
-        rule = neo4j_client.run_query(rule_query)
-        print(f"Rule seeded: {rule[0]['rule']['title']}")
-
-        print("Creating Relationship...")
-        rel = neo4j_client.run_query(relation_query)
-        print(f"Relationship created: {rel[0]['rel_count']}")
-
-        # Verification Read Query
-        print("\n--- Verification Query ---")
-        verify_query = """
-        MATCH (r:Regulation)-[:HAS_RULE]->(rule:Rule)
-        RETURN r.name AS regulation, rule.id AS rule_id, rule.title AS rule_title
-        """
-        results = neo4j_client.run_query(verify_query)
-        for row in results:
-            print(
-                f"Relation Detected: {row['regulation']} -> "
-                f"{row['rule_id']} ({row['rule_title']})"
-            )
-
-    except Exception as e:
-        print(f"Error during seeding: {e}")
-        sys.exit(1)
-    finally:
-        neo4j_client.close()
-        print("Neo4j connection closed.")
+    store = SupabaseRegulationStore(supabase_client.client)
+    for rule_id, outcome in seed(store):
+        sys.stdout.write(f"{rule_id}: {outcome}\n")
+    sys.stdout.write("Open the approval queue to review them. Nothing is active yet.\n")
+    return 0
 
 
 if __name__ == "__main__":
-    seed_rbi_rules()
-
+    sys.exit(main())

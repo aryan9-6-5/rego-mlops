@@ -137,3 +137,52 @@ def test_a_short_chosen_password_is_refused() -> None:
 def test_no_password_is_written_in_the_script() -> None:
     source = (SCRIPTS / "create_demo_users.py").read_text(encoding="utf-8")
     assert "password=" not in source.replace('"password": password', "")
+
+
+# ---- the seed script queues rules for review and never activates them ---------
+
+
+def test_the_seed_script_queues_three_rules_checked_by_z3_and_activates_none() -> None:
+    from tests.integration.world import StatefulRegulationStore
+
+    store = StatefulRegulationStore()
+    results = load("seed_rbi_rules").seed(store)
+    assert [r for r, _ in results] == ["RBI-12.1", "RBI-13.3", "RBI-7.1"]
+    rows = list(store.rows.values())
+    assert {r["status"] for r in rows} == {"pending_approval"}
+    assert all(r["description"] and r["source_text"] and r["formal_logic"] for r in rows)
+    assert {r["version"] for r in rows} == {rows[0]["version"]}
+
+
+def test_running_the_seed_script_twice_does_not_duplicate_rules() -> None:
+    from tests.integration.world import StatefulRegulationStore
+
+    store = StatefulRegulationStore()
+    seed = load("seed_rbi_rules").seed
+    seed(store)
+    second = seed(store)
+    assert len(store.rows) == 3
+    assert all("skipped" in outcome for _r, outcome in second)
+
+
+def test_the_seed_script_only_writes_pending_rows_never_active_ones_or_the_graph() -> None:
+    source = (SCRIPTS / "seed_rbi_rules.py").read_text(encoding="utf-8")
+    assert "neo4j" not in source.lower().replace("never writes to neo4j", "")
+    assert "S.ACTIVE" not in source.replace("S.ACTIVE.value,\n]", "")  # only in the skip list
+
+
+def test_the_provisions_are_real_quotes_and_each_rule_is_valid_z3() -> None:
+    from src.api.schemas.regulation import RegulationStatus
+    from src.pipeline.ingestion.validator import validate
+
+    provisions = load("rbi_digital_lending_2025").PROVISIONS
+    assert set(provisions) == {"12.1", "13.3", "7.1"}
+    for section, (text, description, formula) in provisions.items():
+        assert validate(formula).status is RegulationStatus.Z3_VALIDATED, section
+        assert description and text.startswith("RE shall")
+
+
+def test_no_invented_pin_code_rule_is_presented_as_an_rbi_provision() -> None:
+    for name in ("seed_rbi_rules.py", "poc_pipeline.py", "demo_offline.py", "rbi_digital_lending_2025.py"):
+        text = (SCRIPTS / name).read_text(encoding="utf-8").lower()
+        assert "pin_code" not in text and "pin code" not in text.replace("no pin code", ""), name
