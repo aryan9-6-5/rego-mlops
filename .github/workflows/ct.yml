@@ -38,8 +38,8 @@ jobs:
       regulation_version: ${{ steps.drift.outputs.regulation_version }}
       detected_at: ${{ steps.drift.outputs.detected_at }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       - run: pip install poetry && poetry install
@@ -60,8 +60,8 @@ jobs:
     if: needs.detect.outputs.regulation_version != ''
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       - run: pip install poetry && poetry install --with ct
@@ -81,7 +81,7 @@ jobs:
         run: poetry run python -m src.pipeline.ci.cli --artifact "$MODEL_VERSION"
       - name: Upload MLflow runs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: mlflow
           path: |
