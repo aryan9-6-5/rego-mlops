@@ -13,6 +13,9 @@ uvicorn = "^0.29.0"
 python-dotenv = "^1.0.0"
 neo4j = "^5.19.0"
 supabase = "^2.4.0"
+openai = "^1.25.0"
+pydantic = "^2.7.0"
+httpx = "^0.27.0"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -44,6 +47,8 @@ module = [
     "dotenv",
     "neo4j",
     "neo4j.*",
+    "z3",
+    "z3.*",
 ]
 ignore_missing_imports = true
 
