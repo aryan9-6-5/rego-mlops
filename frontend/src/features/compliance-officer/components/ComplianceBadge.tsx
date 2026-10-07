@@ -16,6 +16,7 @@ const STYLES: Record<RegulationStatus, BadgeStyle> = {
   [REGULATION_STATUS.PENDING_APPROVAL]: { label: 'Pending Approval', className: AMBER, dot: 'bg-amber-500' },
   [REGULATION_STATUS.ACTIVE]: { label: 'Active', className: GREEN, dot: 'bg-emerald-500' },
   [REGULATION_STATUS.APPROVED]: { label: 'Approved, activating', className: BLUE, dot: 'bg-blue-500 animate-pulse' },
+  [REGULATION_STATUS.SUPERSEDED]: { label: 'Superseded', className: 'bg-slate-800 text-slate-300 border-slate-600', dot: 'bg-slate-400' },
   [REGULATION_STATUS.REJECTED]: { label: 'Rejected', className: RED, dot: 'bg-red-500' },
   [REGULATION_STATUS.Z3_REJECTED]: { label: 'Verification Failed', className: RED, dot: 'bg-red-500' },
   [REGULATION_STATUS.EXTRACTED]: { label: 'Processing', className: BLUE, dot: 'bg-blue-500 animate-pulse' },

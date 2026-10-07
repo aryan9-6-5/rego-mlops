@@ -91,6 +91,7 @@ def approve_regulation(
 ) -> dict[str, Any]:
     """Human approval: pending_approval -> approved -> (Neo4j write) -> active.
 
+    An earlier active version of the same rule becomes `superseded`.
     A rule left `approved` by a failed graph write can be retried.
     """
     row, current = _load(store, regulation_id)
@@ -113,6 +114,10 @@ def approve_regulation(
         formal_logic=row["formal_logic"],
         approved_by=approver_id,
     )
+    for old in store.list_active_for_rule(row["rule_id"]):
+        if old["id"] != regulation_id:
+            superseded = transition(S.ACTIVE, S.SUPERSEDED)
+            store.update(old["id"], {"status": superseded.value})
     active = transition(S.APPROVED, S.ACTIVE)
     return store.update(regulation_id, {"status": active.value})
 

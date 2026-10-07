@@ -1,10 +1,17 @@
 import logging
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Protocol
 
 from src.api.schemas.regulation import RegulationStatus
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class WriteResult:
+    version_id: str
+    superseded: list[str]
 
 
 class GraphClient(Protocol):
@@ -22,7 +29,14 @@ SET r.rule_id = $rule_id,
     r.status = $status,
     r.approved_by = $approved_by,
     r.activated_at = $activated_at
-RETURN r.version_id AS version_id
+WITH r
+OPTIONAL MATCH (old:Regulation {rule_id: $rule_id, status: $active})
+WHERE old.version_id <> r.version_id
+FOREACH (_ IN CASE WHEN old IS NULL THEN [] ELSE [1] END |
+    SET old.status = $superseded, old.superseded_at = $activated_at
+    MERGE (r)-[:SUPERSEDES]->(old)
+)
+RETURN r.version_id AS version_id, collect(old.version_id) AS superseded
 """
 
 
@@ -45,10 +59,12 @@ def write_regulation(
     jurisdiction: str,
     formal_logic: str,
     approved_by: str,
-) -> str:
+) -> WriteResult:
     """Write an approved rule to Neo4j as an active `(:Regulation)` node.
 
-    Only call after human approval. Returns the version ID.
+    A previously active version of the same rule is marked `superseded` and
+    linked with `(new)-[:SUPERSEDES]->(old)`; the old node is kept so lineage
+    history is preserved. Only call after human approval.
     """
     try:
         rows = graph.run_query(
@@ -60,6 +76,8 @@ def write_regulation(
                 "jurisdiction": jurisdiction,
                 "formal_logic": formal_logic,
                 "status": RegulationStatus.ACTIVE.value,
+                "active": RegulationStatus.ACTIVE.value,
+                "superseded": RegulationStatus.SUPERSEDED.value,
                 "approved_by": approved_by,
                 "activated_at": datetime.now(timezone.utc).isoformat(),
             },
@@ -69,5 +87,10 @@ def write_regulation(
         raise
     if not rows:
         raise RuntimeError(f"Neo4j did not confirm write of {version_id}.")
-    logger.info("Regulation written to graph version_id=%s", version_id)
-    return str(rows[0]["version_id"])
+    superseded = [str(v) for v in rows[0].get("superseded", [])]
+    logger.info(
+        "Regulation written to graph version_id=%s superseded=%s",
+        version_id,
+        superseded,
+    )
+    return WriteResult(str(rows[0]["version_id"]), superseded)

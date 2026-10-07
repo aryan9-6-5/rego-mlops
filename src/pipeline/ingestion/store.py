@@ -8,6 +8,7 @@ class RegulationStore(Protocol):
     def get(self, regulation_id: str) -> dict[str, Any] | None: ...
     def update(self, regulation_id: str, fields: dict[str, Any]) -> dict[str, Any]: ...
     def list_by_status(self, statuses: list[str]) -> list[dict[str, Any]]: ...
+    def list_active_for_rule(self, rule_id: str) -> list[dict[str, Any]]: ...
 
 
 class SupabaseRegulationStore:
@@ -37,6 +38,17 @@ class SupabaseRegulationStore:
             .select("*")
             .in_("status", statuses)
             .order("created_at", desc=True)
+            .execute()
+            .data
+        )
+        return [dict(r) for r in data]
+
+    def list_active_for_rule(self, rule_id: str) -> list[dict[str, Any]]:
+        data: Any = (
+            self._table()
+            .select("*")
+            .eq("rule_id", rule_id)
+            .eq("status", "active")
             .execute()
             .data
         )

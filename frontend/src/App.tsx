@@ -7,6 +7,8 @@ import Unauthorized from "./pages/Unauthorized";
 import RegulationUpload from "./features/compliance-officer/pages/RegulationUpload";
 import ApprovalQueue from "./features/compliance-officer/pages/ApprovalQueue";
 import Pipeline from "./features/ml-engineer/pages/Pipeline";
+import ModelRegistry from "./features/ml-engineer/pages/ModelRegistry";
+import Certificates from "./features/compliance-officer/pages/Certificates";
 
 function App() {
   return (
@@ -47,12 +49,18 @@ function App() {
           </ProtectedRoute>
         } />
 
-        <Route path="/certificates" element={
-          <ProtectedRoute>
+        <Route path="/model-registry" element={
+          <ProtectedRoute allowedRoles={['ml_engineer']}>
             <Shell>
-              <div className="p-12 text-center text-slate-500 italic">
-                Certificate Registry coming soon...
-              </div>
+              <ModelRegistry />
+            </Shell>
+          </ProtectedRoute>
+        } />
+
+        <Route path="/certificates" element={
+          <ProtectedRoute allowedRoles={['compliance_officer']}>
+            <Shell>
+              <Certificates />
             </Shell>
           </ProtectedRoute>
         } />

@@ -20,6 +20,7 @@ class RegulationStatus(str, Enum):
     APPROVED = "approved"
     REJECTED = "rejected"
     ACTIVE = "active"
+    SUPERSEDED = "superseded"
 
 
 class RuleLogic(BaseModel):

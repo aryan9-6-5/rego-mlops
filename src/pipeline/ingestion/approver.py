@@ -9,7 +9,8 @@ ALLOWED_TRANSITIONS: dict[RegulationStatus, frozenset[RegulationStatus]] = {
     S.APPROVED: frozenset({S.ACTIVE}),
     S.Z3_REJECTED: frozenset(),
     S.REJECTED: frozenset(),
-    S.ACTIVE: frozenset(),
+    S.ACTIVE: frozenset({S.SUPERSEDED}),
+    S.SUPERSEDED: frozenset(),
 }
 
 # Transitions that only a human action may trigger.

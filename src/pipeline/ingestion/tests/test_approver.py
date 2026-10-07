@@ -28,6 +28,7 @@ def test_no_auto_approval() -> None:
         (S.PENDING_APPROVAL, S.ACTIVE),  # skips human approval
         (S.REJECTED, S.ACTIVE),
         (S.ACTIVE, S.REJECTED),
+        (S.SUPERSEDED, S.ACTIVE),  # history is never reactivated
     ],
 )
 def test_invalid_transitions_raise(current: S, target: S) -> None:

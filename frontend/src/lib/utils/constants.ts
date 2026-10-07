@@ -6,6 +6,7 @@ export const REGULATION_STATUS = {
   APPROVED: 'approved',
   REJECTED: 'rejected',
   ACTIVE: 'active',
+  SUPERSEDED: 'superseded',
 } as const;
 
 export type RegulationStatus =

@@ -5,6 +5,7 @@ import {
   LayoutDashboard, 
   FileCheck, 
   ListChecks, 
+  Boxes, 
   GitBranch, 
   ShieldCheck, 
   LogOut, 
@@ -51,10 +52,16 @@ export const Shell: React.FC<ShellProps> = ({ children }) => {
       roles: ['ml_engineer']
     },
     { 
+      name: 'Model Registry', 
+      href: '/model-registry', 
+      icon: Boxes,
+      roles: ['ml_engineer']
+    },
+    { 
       name: 'Certificates', 
       href: '/certificates', 
       icon: ShieldCheck,
-      roles: ['compliance_officer', 'ml_engineer']
+      roles: ['compliance_officer']
     },
   ];
 

@@ -53,6 +53,13 @@ class FakeStore:
     def list_by_status(self, statuses: list[str]) -> list[dict[str, Any]]:
         return [r for r in self.rows.values() if r["status"] in statuses]
 
+    def list_active_for_rule(self, rule_id: str) -> list[dict[str, Any]]:
+        return [
+            dict(r)
+            for r in self.rows.values()
+            if r["rule_id"] == rule_id and r["status"] == S.ACTIVE.value
+        ]
+
 
 class FakeGraph:
     def __init__(self, fail: bool = False) -> None:
@@ -65,7 +72,7 @@ class FakeGraph:
         if self.fail:
             raise RuntimeError("neo4j down")
         self.writes.append(params or {})
-        return [{"version_id": (params or {})["version_id"]}]
+        return [{"version_id": (params or {})["version_id"], "superseded": []}]
 
 
 async def ingest(store: FakeStore, *formulas: str) -> list[dict[str, Any]]:
@@ -133,3 +140,14 @@ async def test_graph_failure_leaves_rule_approved_and_retryable() -> None:
     assert store.rows[row["id"]]["status"] == S.APPROVED.value
     done = approve_regulation(store, FakeGraph(), row["id"], "u")
     assert done["status"] == S.ACTIVE.value
+
+
+@pytest.mark.asyncio
+async def test_approving_a_new_version_supersedes_the_old_one() -> None:
+    store, graph = FakeStore(), FakeGraph()
+    (first,) = await ingest(store, GOOD_FORMULA)
+    approve_regulation(store, graph, first["id"], "u")
+    (second,) = await ingest(store, GOOD_FORMULA)
+    approve_regulation(store, graph, second["id"], "u")
+    assert store.rows[first["id"]]["status"] == S.SUPERSEDED.value
+    assert store.rows[second["id"]]["status"] == S.ACTIVE.value
