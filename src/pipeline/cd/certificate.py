@@ -3,6 +3,7 @@ import hmac
 import json
 import logging
 from collections.abc import Sequence
+from dataclasses import dataclass
 from typing import Any, Protocol
 
 from src.api.schemas.certificate import (
@@ -158,3 +159,34 @@ def list_certificates(store: CertificateStore, secret: str) -> list[CertificateR
             )
         )
     return results
+
+
+@dataclass(frozen=True)
+class VerificationResult:
+    valid: bool
+    explanation: str
+
+
+def verify_proof_hash(
+    store: CertificateStore, secret: str, certificate_id: str, proof_hash: str
+) -> VerificationResult:
+    """Does this hash belong to this certificate, and is the certificate intact?
+
+    For auditors, so the answer is a plain yes/no with a reason. Nothing from
+    the certificate other than that is returned.
+    """
+    row = store.get(certificate_id)
+    if row is None:
+        return VerificationResult(False, "No certificate exists with that ID.")
+    if not signature_is_valid(secret, row):
+        logger.error("Tampered certificate detected id=%s", certificate_id)
+        return VerificationResult(
+            False,
+            "This certificate failed its integrity check and may have been altered.",
+        )
+    if not hmac.compare_digest(str(row["proof_hash"]), proof_hash.strip()):
+        return VerificationResult(
+            False,
+            "The hash does not match this certificate. It may be forged or altered.",
+        )
+    return VerificationResult(True, "The hash matches an intact, signed certificate.")

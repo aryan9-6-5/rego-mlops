@@ -43,3 +43,13 @@ class DeployResponse(BaseModel):
     model_version: str
     certificate_id: str
     status: str = "promoted"
+
+
+class VerifyRequest(BaseModel):
+    cert_id: str = Field(pattern=r"^[0-9a-fA-F-]{36}$")
+    proof_hash: str = Field(min_length=1, max_length=128)
+
+
+class VerifyResponse(BaseModel):
+    valid: bool
+    explanation: str

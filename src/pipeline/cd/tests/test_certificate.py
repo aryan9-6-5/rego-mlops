@@ -12,6 +12,7 @@ from src.pipeline.cd.certificate import (
     issue_certificate,
     list_certificates,
     read_certificate,
+    verify_proof_hash,
 )
 
 SECRET = "test-secret"
@@ -127,3 +128,32 @@ def test_list_is_newest_first_and_flags_tampered_rows_without_serving_them() -> 
     assert items[1].proof_hash == "" and items[1].hmac_signature == ""
     assert items[1].regulation_versions == []
     assert second.id == items[0].id
+
+
+def test_verify_accepts_the_right_hash() -> None:
+    store = MemoryStore()
+    cert = issue(store)
+    result = verify_proof_hash(store, SECRET, cert.id, cert.proof_hash)
+    assert result.valid
+
+
+def test_verify_rejects_a_forged_hash_with_an_explanation() -> None:
+    store = MemoryStore()
+    cert = issue(store)
+    result = verify_proof_hash(store, SECRET, cert.id, "0" * 64)
+    assert not result.valid
+    assert "forged" in result.explanation
+
+
+def test_verify_rejects_a_tampered_certificate_even_with_its_own_hash() -> None:
+    store = MemoryStore()
+    cert = issue(store)
+    store.rows[cert.id]["proof_hash"] = "f" * 64  # attacker edits the DB row
+    result = verify_proof_hash(store, SECRET, cert.id, "f" * 64)
+    assert not result.valid
+    assert "integrity" in result.explanation
+
+
+def test_verify_unknown_certificate() -> None:
+    result = verify_proof_hash(MemoryStore(), SECRET, "nope", "ab")
+    assert not result.valid

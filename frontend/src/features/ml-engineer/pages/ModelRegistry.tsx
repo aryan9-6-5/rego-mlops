@@ -1,11 +1,35 @@
 import React from 'react';
+import { ProofCertificateView } from '@/components/certificate/ProofCertificateView';
 import { StatusBadge } from '@/features/compliance-officer/components/ComplianceBadge';
 import { errorMessage } from '@/lib/api/client';
+import { certificatesForModel, type Certificate } from '@/lib/api/certificateHelpers';
+import { useCertificates } from '@/lib/api/certificates';
 import { formatDate, useModelLineages } from '@/lib/api/models';
 import type { RegulationStatus } from '@/lib/utils/constants';
 
+const ModelCertificate: React.FC<{ certificates: Certificate[]; loading: boolean }> = ({
+  certificates,
+  loading,
+}) => {
+  if (loading) return <span className="text-slate-400">Loading certificate...</span>;
+  if (certificates.length === 0) return <span className="text-slate-400">Not yet certified</span>;
+  return (
+    <div className="space-y-2">
+      {certificates.map((cert) => (
+        <details key={cert.id}>
+          <summary className="cursor-pointer text-blue-400">View certificate</summary>
+          <div className="mt-2 w-[28rem] max-w-full">
+            <ProofCertificateView certificate={cert} showProofHash />
+          </div>
+        </details>
+      ))}
+    </div>
+  );
+};
+
 const ModelRegistry: React.FC = () => {
   const { data, isLoading, isError, error } = useModelLineages();
+  const certificates = useCertificates();
 
   if (isLoading) {
     return <p className="text-slate-300">Loading model versions and their regulation lineage...</p>;
@@ -34,6 +58,7 @@ const ModelRegistry: React.FC = () => {
             <th className="px-6 py-4 font-medium uppercase tracking-wider">Model version</th>
             <th className="px-6 py-4 font-medium uppercase tracking-wider">Certified</th>
             <th className="px-6 py-4 font-medium uppercase tracking-wider">Regulation versions</th>
+            <th className="px-6 py-4 font-medium uppercase tracking-wider">Certificate</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-800">
@@ -51,6 +76,16 @@ const ModelRegistry: React.FC = () => {
                     <StatusBadge status={reg.status as RegulationStatus} />
                   </div>
                 ))}
+              </td>
+              <td className="px-6 py-4">
+                {certificates.isError ? (
+                  <span className="text-slate-400">Certificates unavailable</span>
+                ) : (
+                  <ModelCertificate
+                    certificates={certificatesForModel(certificates.data ?? [], model.model_version)}
+                    loading={certificates.isLoading}
+                  />
+                )}
               </td>
             </tr>
           ))}

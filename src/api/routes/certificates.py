@@ -4,7 +4,12 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from src.api.dependencies import require_role
 from src.api.providers import get_cert_secret, get_cert_store
-from src.api.schemas.certificate import CertificateRead, ProofCertificate
+from src.api.schemas.certificate import (
+    CertificateRead,
+    ProofCertificate,
+    VerifyRequest,
+    VerifyResponse,
+)
 from src.pipeline.cd import certificate
 from src.pipeline.cd.certificate import CertificateStore
 
@@ -22,6 +27,18 @@ Secret = Annotated[str, Depends(get_cert_secret)]
 async def list_certificates(store: Store, secret: Secret) -> Any:
     """All certificates, newest first, each with its HMAC re-verified."""
     return certificate.list_certificates(store, secret)
+
+
+@router.post("/verify", response_model=VerifyResponse)
+async def verify_certificate(
+    body: VerifyRequest, store: Store, secret: Secret
+) -> Any:
+    """Public: lets an auditor check a certificate hash without an account
+    (PLAN.md 3.6). Reveals only whether the hash is valid. Rate limiting for
+    this route is planned for Stage 4.6."""
+    return certificate.verify_proof_hash(
+        store, secret, body.cert_id, body.proof_hash
+    )
 
 
 @router.get(

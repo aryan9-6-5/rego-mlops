@@ -1,21 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api/client';
-
-export interface CertificateRegulation {
-  version_id: string;
-  rule_id: string;
-  formula_hash: string;
-}
-
-export interface Certificate {
-  id: string;
-  model_version: string;
-  regulation_versions: CertificateRegulation[];
-  proof_hash: string;
-  hmac_signature: string;
-  created_at: string | null;
-  verification: 'valid' | 'tampered';
-}
+import type { Certificate } from './certificateHelpers';
 
 const CERTIFICATES_KEY = ['certificates'] as const;
 
@@ -49,9 +34,4 @@ export function downloadCertificate(certificate: Certificate): void {
   link.download = `certificate-${certificate.model_version}.json`;
   link.click();
   URL.revokeObjectURL(url);
-}
-
-/** `RBI-4.1` -> `RBI section 4.1`, in words a compliance officer uses. */
-export function regulationLabel(ruleId: string): string {
-  return ruleId.replace(/^RBI-/, 'RBI section ');
 }

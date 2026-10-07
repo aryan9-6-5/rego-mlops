@@ -230,6 +230,11 @@ Output: Deployed model + proof certificate (model_version + regulation_versions 
 - There is no create, update or delete certificate route. Compliance officers do not see proof hashes on screen; the downloaded JSON includes them for auditors.
 - The Railway deployer sets `MODEL_VERSION` on a canary service, then on the main service, and redeploys. Railway cannot split traffic by percentage, so the canary takes no live traffic. Its GraphQL calls are untested against a live project. Variables: `RAILWAY_API_TOKEN`, `RAILWAY_PROJECT_ID`, `RAILWAY_ENVIRONMENT_ID`, `RAILWAY_SERVICE_ID`, `RAILWAY_CANARY_SERVICE_ID`.
 
+**Certificate display and verification (Stage 3.6)**
+- `POST /api/certificates/verify` takes `{cert_id, proof_hash}` and returns `{valid, explanation}`. It needs no login, as PLAN.md 3.6 specifies, which is an exception to AIRULES Rule 30. It re-verifies the HMAC first, so a certificate whose database row was edited is never reported valid. Rate limiting for it is planned for Stage 4.6.
+- `ProofCertificateView` is shared. The ML engineer sees the full proof hash. The compliance officer does not but can copy it to the clipboard with "Copy hash" to hand to an auditor.
+- `scripts/generate_dev_certificate.py` signs a `dev-<timestamp>` certificate for UI work. It prints JSON by default; `--insert` writes through the normal write-once path and is refused when `ENVIRONMENT=production`.
+
 ### HCI Dashboard
 ```
 Backend:  FastAPI (REST + WebSocket for real-time status)
