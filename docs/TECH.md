@@ -269,7 +269,7 @@ Error Prevention covers Rego's own deploy path. Someone with Railway access can 
 - Row level security (`supabase/migrations/08_tighten_rls.sql`): the anon role has no table access; signed-in staff can read only; the API (service key) does all writes; certificates cannot be updated or deleted by any role, including the service role. Auditors use the verify endpoint, not the database. The migration has not been run against a real Supabase project; test each role through PostgREST after applying it.
 - No applicant PII exists in the code or database: a test scans every log call for PII and credential words, `pipeline_events` stores model-level columns only, and the training notebook refuses personal data columns or unhashed id columns.
 - Dependencies: CI runs `bandit` (medium and above), `scripts/audit_lock.py` (all groups in `poetry.lock`, via `pip-audit`) and `npm audit --omit=dev --audit-level=high`. `bandit` and `pip-audit` are dev tools added in Stage 4; `pip-audit` replaces `safety`, which now needs an account. Advisories we accept are listed with reasons in `scripts/audit_lock.py`.
-- Frontend: react-router-dom 7, vite 8, vitest 5, @vitejs/plugin-react 6 and jsdom 29 need Node 22 (the CI jobs and the Docker build stage use it) and @types/node 22. `npm audit --omit=dev` reports no vulnerabilities. The advisories that remain come from tailwindcss 3 build-time dependencies and need the tailwindcss 4 migration (docs/FRONTEND_UPGRADE_PLAN.md). The dev server binds to localhost only.
+- Frontend: react-router-dom 7, vite 8, vitest 5, @vitejs/plugin-react 6 and jsdom 29 need Node 22 (the CI jobs and the Docker build stage use it) and @types/node 22. `npm audit --omit=dev` reports no vulnerabilities. tailwindcss 4 (with `@tailwindcss/postcss` and tailwind-merge 3) is applied, so `npm audit` reports no vulnerabilities at all. Tailwind 4 needs Chrome 111, Safari 16.4 or Firefox 128 or newer. The dev server binds to localhost only.
 - Not covered by code: Railway must not expose the database or Neo4j publicly, and the Supabase anon key is public by design, so RLS is the only protection for direct database access. Check both when deploying (Stage 6.4).
 
 **Test tooling (Stage 5)**
@@ -338,7 +338,8 @@ kaggle = "1.8.4"
     "@tanstack/react-query": "^5.36.0",
     "zustand": "^4.5.0",
     "recharts": "^2.12.0",
-    "tailwindcss": "^3.4.0"
+    "tailwindcss": "^4.3.0",
+    "@tailwindcss/postcss": "^4.3.0"
   },
   "devDependencies": {
     "vite": "^8.3.0",

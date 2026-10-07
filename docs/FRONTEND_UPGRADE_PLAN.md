@@ -1,6 +1,6 @@
 # Frontend dependency upgrade plan
 
-Status: steps 1 and 2 are applied (October 2026). Step 3 (tailwindcss 4) is deferred.
+Status: steps 1 and 2 are applied (October 2026). Step 3 (tailwindcss 4) is applied on the tailwind-4 branch.
 Versions are pinned in docs/TECH.md, so each step below also needs a TECH.md edit.
 
 ## Why
@@ -83,3 +83,13 @@ then, accept the build-time advisories and say so in docs/ISSUES.md.
 
 After steps 1 and 2, `npm audit --omit=dev` reports 0 and the remaining full-audit
 findings are all tailwindcss build-time dependencies.
+
+## Step 3 result (tailwindcss 4)
+
+Done with the official upgrade tool (`npx @tailwindcss/upgrade`), then checked by hand.
+
+- The tool replaced `tailwind.config.js` (it held no custom theme) with `@import 'tailwindcss'` in `src/index.css`, switched the PostCSS plugin to `@tailwindcss/postcss`, and renamed three utilities (`rounded` to `rounded-sm`, `bg-gradient-to-br` to `bg-linear-to-br`, `outline-none` to `outline-hidden`).
+- By hand: `placeholder-slate-700` (removed in v4) became `placeholder:text-slate-700`, tailwind-merge moved to 3, and `mt-4` was removed from the login button because v4 `space-y` now sets margin-bottom, which doubled the gap.
+- Checked by comparing the position and size of every element on all pages, before and after, with the Playwright stubs. Login and most pages are identical. Three differences remain, all places where v3 applied `space-y` to an element that does not take margin (a hidden `datalist`, an inline link): the model diff form sits 24px higher, and the engineer overview is 8px taller. Both now match the spacing the markup asks for.
+- Colours are slightly more saturated, because the v4 palette is defined in a wider colour space.
+- Result: lint, 113 unit tests, build and 24 end-to-end tests pass, and `npm audit` reports 0 vulnerabilities.

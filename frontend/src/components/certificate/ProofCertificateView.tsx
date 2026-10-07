@@ -45,7 +45,7 @@ export const ProofCertificateView: React.FC<Props> = ({ certificate, technicalVi
             <li key={reg.version_id} className="text-slate-100">
               {technicalView ? regulationLabel(reg.rule_id) : regulationVersionLabel(reg.rule_id, reg.version_id)}
               {technicalView && (
-                <code className="ml-2 rounded bg-indigo-950 px-1.5 py-0.5 font-mono text-xs text-indigo-300">
+                <code className="ml-2 rounded-sm bg-indigo-950 px-1.5 py-0.5 font-mono text-xs text-indigo-300">
                   {reg.version_id}
                 </code>
               )}

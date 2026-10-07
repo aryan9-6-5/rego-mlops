@@ -18,7 +18,7 @@ const ModelCertificate: React.FC<{ certificates: Certificate[]; loading: boolean
       {certificates.map((cert) => (
         <details key={cert.id}>
           <summary className="cursor-pointer text-blue-400">View certificate</summary>
-          <div className="mt-2 w-[28rem] max-w-full">
+          <div className="mt-2 w-md max-w-full">
             <ProofCertificateView certificate={cert} technicalView />
           </div>
         </details>
