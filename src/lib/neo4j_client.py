@@ -12,12 +12,12 @@ class Neo4jClient:
 
     def __init__(self) -> None:
         uri = os.getenv("NEO4J_URI")
-        user = os.getenv("NEO4J_USER")
+        user = os.getenv("NEO4J_USERNAME") or os.getenv("NEO4J_USER")
         password = os.getenv("NEO4J_PASSWORD")
 
         if not uri or not user or not password:
             raise ValueError(
-                "NEO4J_URI, NEO4J_USER, and NEO4J_PASSWORD must be set."
+                "NEO4J_URI, NEO4J_USERNAME, and NEO4J_PASSWORD must be set."
             )
 
         self._driver: Driver = GraphDatabase.driver(
