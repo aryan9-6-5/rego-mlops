@@ -61,7 +61,7 @@ A feature is done when:
 | `pipeline/ci/symbolic_check.py` | Every Z3 rule check — both UNSAT (compliant) AND SAT (violation + counterexample) | False COMPLIANT verdict is a legal liability |
 | `pipeline/ingestion/extractor.py` | LLM output → Rule object parsing, malformed output handling | Bad rule extraction corrupts the knowledge graph |
 | `pipeline/ingestion/validator.py` | Z3 well-formedness check on generated rules, rejection of invalid formulas | Invalid formula fed to Z3 causes solver errors |
-| `pipeline/ingestion/approver.py` | All state machine transitions: extracted→pending, pending→approved, pending→rejected, invalid transitions | Human approval gate is Rule 5 in AIRULES.md |
+| `pipeline/ingestion/approver.py` | All state machine transitions: extracted→pending, pending→approved, pending→rejected, invalid transitions | Human approval gate |
 | `pipeline/cd/certificate.py` | Certificate generation, HMAC signing, HMAC verification, tamper detection | Certificate integrity is the legal output of Rego |
 | `pipeline/cd/lineage.py` | model↔regulation lineage creation, lineage query correctness | Lineage is what makes certificates meaningful |
 | `pipeline/ct/drift_detector.py` | New rule detection, amended rule detection, no-change detection | CT trigger must fire exactly when needed, never spuriously |
@@ -167,7 +167,7 @@ class TestZ3ComplianceChecker:
     def test_violation_report_contains_plain_english_explanation(
         self, checker: Z3ComplianceChecker, violating_model_constraints: dict
     ) -> None:
-        """CO interface must never see raw Z3 output — AIRULES Rule 38"""
+        """CO interface must never see raw Z3 output"""
         result: GateResult = checker.check(
             model_constraints=violating_model_constraints,
             rule_id="RBI-MD-2022-§4.1.c",
@@ -214,7 +214,7 @@ describe('ComplianceBadge', () => {
     expect(dot).toHaveClass('animate-pulse')
   })
 
-  it('never renders color without a text label — AIRULES Rule 37', () => {
+  it('never renders color without a text label', () => {
     const statuses = ['compliant', 'violation', 'pending', 'running'] as const
     statuses.forEach(status => {
       const { unmount } = render(<ComplianceBadge status={status} />)
@@ -243,7 +243,7 @@ describe('ComplianceBadge', () => {
 |------|-----|
 | `POST /api/regulations` — full ingestion flow | Covers: LLM call → Z3 validation → Neo4j write → pending_approval state |
 | `POST /api/regulations/{id}/approve` — approval state machine | Covers: state transition, auth check (CO role only), Neo4j update |
-| `GET /api/certificates/{id}` — certificate retrieval + HMAC verify | Covers: Supabase read + HMAC re-verification (Rule 33 AIRULES) |
+| `GET /api/certificates/{id}` — certificate retrieval + HMAC verify | Covers: Supabase read + HMAC re-verification |
 | `GET /api/pipeline/status` — live status reads | Covers: Supabase + Neo4j reads, correct serialization |
 | Full CI gate sequence — `gate_runner.py` | Covers: all gates run in order, first failure halts correctly |
 | Lineage write + query | Covers: Neo4j model↔regulation edge creation and traversal |
@@ -321,7 +321,7 @@ async def test_certificate_cannot_be_overwritten(
     ml_engineer_token: str,
 ) -> None:
     """
-    AIRULES Rule 4: Proof certificates are immutable once written.
+    Proof certificates are immutable once written.
     A second write attempt to the same model version must fail.
     """
     headers = {"Authorization": f"Bearer {ml_engineer_token}"}
@@ -352,7 +352,7 @@ async def test_certificate_hmac_tamper_detection(
     test_supabase,
 ) -> None:
     """
-    AIRULES Rule 33: Tampered certificates must be detected and rejected.
+    Tampered certificates must be detected and rejected.
     """
     headers = {"Authorization": f"Bearer {ml_engineer_token}"}
 
@@ -430,7 +430,7 @@ test.describe('Regulatory ingestion → human approval flow', () => {
     expect(ruleText!.length).toBeGreaterThan(20)
   })
 
-  test('CO approval requires two deliberate actions — AIRULES Rule 39', async ({ page }) => {
+  test('CO approval requires two deliberate actions', async ({ page }) => {
     await page.goto('/compliance-officer/approvals')
 
     // Find a pending rule
@@ -483,7 +483,7 @@ Run this before every PR and every deploy. Check every box — do not skip.
 - [ ] Unauthenticated request to any protected endpoint → returns 401
 - [ ] Expired JWT → returns 401, frontend shows login screen
 
-### Status display (AIRULES Rule 37 — color + text always together)
+### Status display (color + text always together)
 - [ ] Compliance badge on CO dashboard shows text label, not just a colored dot
 - [ ] VIOLATION badge pulses (animate-pulse on dot)
 - [ ] Pipeline gate rows show PASS/FAIL/RUNNING/QUEUED with both icon and label
@@ -619,7 +619,7 @@ npx playwright test --ui
 | **Every PR** | Python unit tests + React unit tests + linting (ruff, mypy, eslint) + type check | < 5 min | Any test fails, any lint error, coverage below threshold |
 | **Merge to main** | All of above + integration tests (test Supabase + test Neo4j) | < 10 min | Any integration test fails |
 | **CT workflow trigger** (regulation drift detected) | Python unit tests + Z3 symbolic checks against new rule set | < 4 min | New rule causes existing compliant model to fail (triggers retraining) |
-| **Pre-deploy (CD workflow)** | Full CI gate suite + certificate generation test + HMAC verification | < 3 min | Any gate fails — deployment blocked, AIRULES Rule 3 |
+| **Pre-deploy (CD workflow)** | Full CI gate suite + certificate generation test + HMAC verification | < 3 min | Any gate fails — deployment blocked |
 | **Weekly (scheduled)** | E2E tests against staging environment | < 15 min | Sends Slack/email alert (does not block — no live prod yet) |
 
 ### GitHub Actions workflow mapping

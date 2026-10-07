@@ -242,15 +242,8 @@ rego-mlops/
 │   ├── TECH.md
 │   ├── ARCHITECTURE.md           ← this file
 │   ├── DESIGN.md
-│   ├── AIRULES.md
-│   ├── CONSTRAINTS.md
-│   ├── TESTING.md
-│   ├── PLAN.md
-│   ├── SKILLS.md
-│   └── ISSUES.md
+│   └── TESTING.md
 │
-├── system/
-│   └── LLM_INSTRUCTIONS.md
 │
 ├── pyproject.toml
 ├── poetry.lock

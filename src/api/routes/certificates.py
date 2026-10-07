@@ -37,7 +37,7 @@ async def verify_certificate(
     body: VerifyRequest, store: Store, secret: Secret
 ) -> Any:
     """Public: lets an auditor check a certificate hash without an account
-    (PLAN.md 3.6). Reveals only whether the hash is valid. Limited to 30
+   . Reveals only whether the hash is valid. Limited to 30
     requests a minute per client address."""
     return certificate.verify_proof_hash(
         store, secret, body.cert_id, body.proof_hash

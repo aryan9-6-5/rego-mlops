@@ -76,7 +76,7 @@ The same configuration can be run locally without Docker to check it before depl
 
 - The service sleeps when idle and takes roughly 30 seconds to wake. Before any timed demonstration, request `/health/` about five minutes ahead.
 - The container filesystem is not persistent.
-- Memory is limited. Z3 and the API fit comfortably in the limit stated in `docs/CONSTRAINTS.md`.
+- Memory is limited. Z3 and the API fit comfortably in the limit stated.
 
 ## 8. Model files
 

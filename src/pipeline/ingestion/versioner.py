@@ -49,7 +49,7 @@ def new_version(now: datetime | None = None) -> str:
 
 
 def make_version_id(rule_id: str, version: str) -> str:
-    """`RBI-{section}-{timestamp}` (PLAN.md 3.1); rule_id is `RBI-{section}`."""
+    """`RBI-{section}-{timestamp}`; rule_id is `RBI-{section}`."""
     return f"{rule_id}-{version}"
 
 

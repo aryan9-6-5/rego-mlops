@@ -1,6 +1,5 @@
-"""The frontend's status constants must equal the backend enums exactly
-(AIRULES Rule 14), so a rename on one side fails here instead of silently
-breaking a status display."""
+"""The frontend's status constants must equal the backend enums exactly, so a
+rename on one side fails here instead of silently breaking a status display."""
 
 import re
 from pathlib import Path

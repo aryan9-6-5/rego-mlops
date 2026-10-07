@@ -44,3 +44,8 @@ artifacts/
 # Playwright output
 frontend/test-results/
 frontend/playwright-report/
+
+# Internal working notes, kept locally
+docs/AIRULES.md
+docs/SKILLS.md
+docs/CONSTRAINTS.md

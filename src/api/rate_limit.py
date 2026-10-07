@@ -12,7 +12,7 @@ WINDOW_SECONDS = 60.0
 
 class RateLimiter:
     """Sliding-window limiter. In-process, so it assumes a single API instance
-    (the Railway free tier). Redis is not permitted (CONSTRAINTS.md)."""
+    (the Railway free tier). Redis is not used."""
 
     def __init__(
         self,

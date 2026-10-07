@@ -208,7 +208,7 @@ Output: PASS → proceed to CD | FAIL → halt + violation report with Z3 counte
 - Rules are SMT-LIB2 (`declare-const` + `assert`) stating the condition a compliant model must meet. Z3 looks for a way the rule can be false under the model's weights: UNSAT proves compliance, SAT gives a counterexample.
 - Gates fail closed: no active rules, an unparseable rule, an UNKNOWN Z3 answer, missing evaluation data, or a crashing gate all count as a violation. The first failure halts the run.
 - `reg_attack` is a boundary-robustness test: each weight a rule mentions is nudged by +/-0.1% and the rule re-proved. Fairness is a demographic-parity gap (max 10 points); regression is F1 not more than 5% below baseline. Both are pure Python.
-- `ci/reporter.py` uses templates, not an LLM (AIRULES Rule 2 forbids LLM calls in `pipeline/ci/`).
+- `ci/reporter.py` uses templates, not an LLM (no LLM runs in `pipeline/ci/`).
 - `ct/trigger.py` dispatches the GitHub Actions workflow; `ct/kaggle_runner.py` drives Kaggle through the `kaggle` CLI. The CT notebook excludes prohibited features (hard zero weight); `ct/constraint_loss.py` holds the PyTorch penalty for a neural-network model.
 - `mlflow` and `kaggle` live in the optional Poetry group `ct` (`poetry install --with ct`). Extra environment variables: `MODEL_ARTIFACT_DIR`, `GITHUB_TOKEN`, `GITHUB_REPOSITORY`, `CT_WORKFLOW_FILE`, `CT_WORKFLOW_REF`, `KAGGLE_USERNAME`, `KAGGLE_KEY`, `KAGGLE_TRAIN_DATASET`.
 
@@ -231,7 +231,7 @@ Output: Deployed model + proof certificate (model_version + regulation_versions 
 - The Railway deployer sets `MODEL_VERSION` on a canary service, then on the main service, and redeploys. Railway cannot split traffic by percentage, so the canary takes no live traffic. Its GraphQL calls are untested against a live project. Variables: `RAILWAY_API_TOKEN`, `RAILWAY_PROJECT_ID`, `RAILWAY_ENVIRONMENT_ID`, `RAILWAY_SERVICE_ID`, `RAILWAY_CANARY_SERVICE_ID`.
 
 **Certificate display and verification (Stage 3.6)**
-- `POST /api/certificates/verify` takes `{cert_id, proof_hash}` and returns `{valid, explanation}`. It needs no login, as PLAN.md 3.6 specifies, which is an exception to AIRULES Rule 30. It re-verifies the HMAC first, so a certificate whose database row was edited is never reported valid. Rate limiting for it is planned for Stage 4.6.
+- `POST /api/certificates/verify` takes `{cert_id, proof_hash}` and returns `{valid, explanation}`. It needs no login, which is a deliberate exception to the login requirement. It re-verifies the HMAC first, so a certificate whose database row was edited is never reported valid. Rate limiting for it is planned for Stage 4.6.
 - `ProofCertificateView` is shared. The ML engineer sees the full proof hash. The compliance officer does not but can copy it to the clipboard with "Copy hash" to hand to an auditor.
 - `scripts/generate_dev_certificate.py` signs a `dev-<timestamp>` certificate for UI work. It prints JSON by default; `--insert` writes through the normal write-once path and is refused when `ENVIRONMENT=production`.
 

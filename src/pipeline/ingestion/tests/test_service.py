@@ -157,7 +157,7 @@ async def test_approving_a_new_version_supersedes_the_old_one() -> None:
 async def test_every_extracted_rule_is_run_through_the_validator(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """AIRULES Rule 32: nothing reaches the approval queue unvalidated."""
+    """Nothing reaches the approval queue unvalidated."""
     from src.pipeline.ingestion import service
     from src.pipeline.ingestion.validator import ValidationResult
 
