@@ -13,6 +13,7 @@ TABLE_COLUMNS = {
     "rule_ids",
     "duration_ms",
     "plain_english_result",
+    "bundle_hash",
 }
 
 
@@ -42,6 +43,7 @@ def test_only_the_model_level_columns_are_written_and_counterexamples_are_not() 
         rule_ids=["RBI-4.1"],
         duration_ms=12.7,
         plain_english="The model breaks 1 of 1 active rules.",
+        bundle_hash="abc123",
         violations=[
             Violation(
                 rule_id="RBI-4.1",
@@ -53,3 +55,4 @@ def test_only_the_model_level_columns_are_written_and_counterexamples_are_not() 
     SupabaseEventStore(client).record(event)
     assert set(client.inserted) == TABLE_COLUMNS
     assert "3/10" not in str(client.inserted)
+    assert client.inserted["bundle_hash"] == "abc123"

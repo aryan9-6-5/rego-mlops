@@ -285,6 +285,13 @@ Error Prevention covers Rego's own deploy path. Someone with Railway access can 
 - Accessibility is checked with axe-core through Playwright (`frontend/tests/e2e/accessibility.spec.ts`): WCAG 2.0 and 2.1 A and AA rules on every page for both roles, the review card steps, form errors, keyboard-only approval, and reduced motion. This is the engine behind the Lighthouse accessibility score, but Lighthouse itself has not been run. The audit found and fixed low-contrast small text, an unlabelled file input, white-on-green buttons below 4.5:1 contrast, and missing reduced-motion handling.
 - `@axe-core/playwright` is a dev dependency added for this audit.
 
+**Model file storage**
+- `src/lib/model_bundle.py` reads bundles through a `BundleSource`: `LocalBundleSource` (a folder, for development) or `SupabaseBundleSource` (a private Storage bucket, the production default through `MODEL_BUNDLE_STORE`). Both give the same hash for the same files, so a certificate does not depend on where the files were kept.
+- Bundle names are limited to letters, digits and `. _ -` and may not be only dots, so a name cannot address another path. Each file is capped at 50 MB.
+- Each CI result stores `bundle_hash`, the SHA-256 of the files it checked (migration 09 adds the column). `confirm_ci_passed` refuses a deploy unless all four gates passed on the bytes being deployed, and results recorded without a hash are refused. This stops a bundle being swapped in storage after it passed.
+- Storage failures raise `BundleStorageError` and the API answers 503 with a plain message. Storage calls run in a worker thread so they do not block the server.
+- The Storage calls were tested against a stand-in for the client. Their method signatures and option keys (`content-type`, `upsert`) were checked against the installed supabase-py 2.32. They have not been run against a real bucket.
+
 ## 5. Pinned Versions (Lockfile)
 
 These are the approved versions. Do not upgrade without updating this file and re-running full CI.

@@ -31,7 +31,7 @@ The script prints a generated password for each account once. It does not store 
 
 ## Sample models
 
-`poetry run python scripts/make_demo_models.py` writes five bundles into `MODEL_ARTIFACT_DIR`:
+`poetry run python scripts/make_demo_models.py` writes five bundles into `MODEL_ARTIFACT_DIR`. Add `--upload` to also put them in the Supabase Storage bucket, which the deployed API reads (it needs `SUPABASE_URL` and `SUPABASE_SERVICE_KEY`):
 
 | Bundle | Expected result |
 |:---|:---|

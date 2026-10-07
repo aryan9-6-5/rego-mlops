@@ -38,6 +38,7 @@ class FakeClient:
         self.data = data if data is not None else []
         self.error: Exception | None = None
         self.queries: list[FakeQuery] = []
+        self.storage: Any = None  # tests that use Storage set their own
 
     def table(self, name: str) -> FakeQuery:
         return FakeQuery(self, name)

@@ -112,3 +112,55 @@ def test_a_model_over_a_rule_that_changed_after_ci_is_not_certified(
     response = deploy(api, "late")
     assert response.status_code == 422
     assert world.certificates.rows == {} and world.deployer.calls == []
+
+
+# ---- results are tied to the exact files they were run on ----------------------
+
+
+def test_replacing_the_bundle_after_ci_blocks_the_deploy_even_if_it_still_complies(
+    api: TestClient, world: World
+) -> None:
+    """Bundles sit in storage someone can write to. A pass on the old files must
+    not carry over to different files, even harmless-looking ones."""
+    activate_rule(api)
+    world.bundle("swap", {"income_weight": 0.4, "pin_code_weight": 0.0})
+    assert run_ci(api, "swap")["status"] == "compliant"
+
+    (world.artifact_dir / "swap" / "profile.json").write_text(
+        '{"weights": {"income_weight": 0.9, "pin_code_weight": 0.0}}'
+    )
+    response = deploy(api, "swap")
+    assert response.status_code == 409
+    assert "changed after the checks" in response.json()["detail"]
+    assert world.certificates.rows == {} and world.deployer.calls == []
+
+    # Running the checks again on the new files makes it deployable.
+    assert run_ci(api, "swap")["status"] == "compliant"
+    assert deploy(api, "swap").status_code == 201
+
+
+def test_ci_results_record_the_hash_of_the_files_they_checked(
+    api: TestClient, world: World
+) -> None:
+    activate_rule(api)
+    world.bundle("hashed", {"income_weight": 0.4})
+    run_ci(api, "hashed")
+    hashes = {row["bundle_hash"] for row in world.events.rows}
+    assert len(hashes) == 1 and None not in hashes and len(hashes.pop()) == 64
+
+
+def test_the_certificate_hash_follows_the_files(api: TestClient, world: World) -> None:
+    first = certified_deployment(api, world, "twin-a", {"income_weight": 0.4, "pin_code_weight": 0.0})
+    second = certified_deployment_again(api, world)
+    assert (
+        world.certificates.rows[first]["proof_hash"]
+        != world.certificates.rows[second]["proof_hash"]
+    )
+
+
+def certified_deployment_again(api: TestClient, world: World) -> str:
+    world.bundle("twin-b", {"income_weight": 0.5, "pin_code_weight": 0.0})
+    assert run_ci(api, "twin-b")["status"] == "compliant"
+    response = deploy(api, "twin-b")
+    assert response.status_code == 201
+    return response.json()["certificate_id"]  # type: ignore[no-any-return]

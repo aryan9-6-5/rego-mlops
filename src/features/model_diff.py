@@ -2,7 +2,7 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 from src.api.schemas.model import FeatureChange, ModelDiff
-from src.lib.model_bundle import load_submission
+from src.lib.model_bundle import BundleSource, load_submission
 from src.lib.regulation_graph import ActiveRule, GraphClient, fetch_active_rules
 from src.lib.z3_client import Z3ClientError, rule_variables
 
@@ -59,11 +59,14 @@ def diff_weights(
 
 
 def compare(
-    graph: GraphClient, base_dir: Path, from_version: str, to_version: str
+    graph: GraphClient,
+    source: "Path | BundleSource",
+    from_version: str,
+    to_version: str,
 ) -> ModelDiff:
     """Diff two model bundles against the rules active now."""
-    before = load_submission(from_version, base_dir)
-    after = load_submission(to_version, base_dir)
+    before = load_submission(from_version, source)
+    after = load_submission(to_version, source)
     return diff_weights(
         before.weights,
         after.weights,

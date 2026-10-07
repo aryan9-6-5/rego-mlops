@@ -48,6 +48,7 @@ USER rego
 ENV ENVIRONMENT=production \
     FRONTEND_DIST=/app/frontend/dist \
     MODEL_ARTIFACT_DIR=/app/artifacts/models \
+    MODEL_BUNDLE_STORE=supabase \
     PYTHONUNBUFFERED=1
 
 EXPOSE 8000

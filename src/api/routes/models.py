@@ -1,13 +1,13 @@
-from pathlib import Path
+import asyncio
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from src.api.dependencies import require_role
-from src.api.providers import get_artifact_dir, get_graph
+from src.api.providers import get_bundle_source, get_graph
 from src.api.schemas.model import ModelDiff, ModelLineage, ModelMetadata
 from src.features import model_diff
-from src.lib.model_bundle import SubmissionError
+from src.lib.model_bundle import BundleSource, SubmissionError
 from src.pipeline.cd import lineage
 from src.pipeline.cd.lineage import GraphClient
 
@@ -35,11 +35,13 @@ async def diff_models(
         str, Query(min_length=1, max_length=200, pattern=VERSION_PATTERN)
     ],
     graph: GraphClient = Depends(get_graph),
-    base_dir: Path = Depends(get_artifact_dir),
+    source: BundleSource = Depends(get_bundle_source),
 ) -> Any:
     """Features added, removed or re-weighted between two model versions."""
     try:
-        return model_diff.compare(graph, base_dir, from_version, to_version)
+        return await asyncio.to_thread(
+            model_diff.compare, graph, source, from_version, to_version
+        )
     except SubmissionError as e:
         raise HTTPException(status_code=404, detail=str(e))
 

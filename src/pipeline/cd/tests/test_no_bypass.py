@@ -49,7 +49,7 @@ def test_no_deploy_function_takes_a_bypass_argument() -> None:
     assert offenders == []
 
 
-def test_the_deploy_flow_confirms_ci_before_anything_else() -> None:
+def test_the_deploy_flow_runs_its_steps_in_the_fixed_order() -> None:
     source = (SRC / "pipeline" / "cd" / "service.py").read_text(encoding="utf-8")
     tree = ast.parse(source)
     function = next(
@@ -57,11 +57,11 @@ def test_the_deploy_flow_confirms_ci_before_anything_else() -> None:
         for n in ast.walk(tree)
         if isinstance(n, ast.AsyncFunctionDef) and n.name == "deploy_model"
     )
-    calls = [
-        n.func.id
-        for n in ast.walk(function)
-        if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
-    ]
-    assert calls.index("confirm_ci_passed") < calls.index("verify_against_rules")
-    assert calls.index("verify_against_rules") < calls.index("issue_certificate")
-    assert calls.index("issue_certificate") < calls.index("run_canary")
+    steps = ("confirm_ci_passed", "verify_against_rules", "issue_certificate", "run_canary")
+    first_use: dict[str, int] = {}
+    for node in ast.walk(function):
+        if isinstance(node, ast.Name) and node.id in steps:
+            first_use[node.id] = min(first_use.get(node.id, node.lineno), node.lineno)
+    assert set(first_use) == set(steps)
+    ordered = sorted(steps, key=lambda step: first_use[step])
+    assert ordered == list(steps)

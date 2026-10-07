@@ -27,6 +27,7 @@ env:
   KAGGLE_TRAIN_DATASET: ${{ secrets.KAGGLE_TRAIN_DATASET }}
   MLFLOW_TRACKING_URI: sqlite:///mlflow.db
   MODEL_ARTIFACT_DIR: artifacts/models
+  MODEL_BUNDLE_STORE: supabase
   SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
   SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
 

@@ -206,13 +206,23 @@ class SharedEvents:
 
     def record(self, event: GateEvent) -> None:
         self.rows.append(
-            {"gate_name": event.gate.value, "status": event.status.value}
+            {
+                "gate_name": event.gate.value,
+                "status": event.status.value,
+                "bundle_hash": event.bundle_hash,
+            }
         )
 
     def latest_gate_statuses(self, model_version: str) -> dict[str, str]:
         latest: dict[str, str] = {}
         for row in reversed(self.rows):
             latest.setdefault(row["gate_name"], row["status"])
+        return latest
+
+    def latest_bundle_hashes(self, model_version: str) -> dict[str, str | None]:
+        latest: dict[str, str | None] = {}
+        for row in reversed(self.rows):
+            latest.setdefault(row["gate_name"], row["bundle_hash"])
         return latest
 
 

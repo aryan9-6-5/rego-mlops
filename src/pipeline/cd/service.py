@@ -1,9 +1,10 @@
+import asyncio
 import logging
 from dataclasses import dataclass
 from pathlib import Path
 
 from src.api.schemas.certificate import ProofCertificate
-from src.lib.model_bundle import bundle_hash, load_submission
+from src.lib.model_bundle import BundleSource, fetch_bundle, parse_bundle
 from src.lib.regulation_graph import GraphClient, fetch_active_rules
 from src.pipeline.cd.canary import CANARY_PERCENT, run_canary
 from src.pipeline.cd.certificate import CertificateStore, issue_certificate
@@ -32,7 +33,7 @@ class DeployOutcome:
 async def deploy_model(
     *,
     model_version: str,
-    base_dir: Path,
+    source: "Path | BundleSource",
     graph: GraphClient,
     cert_store: CertificateStore,
     ci_reader: CIEventReader,
@@ -41,14 +42,17 @@ async def deploy_model(
 ) -> DeployOutcome:
     """Compliance-gated deployment. There is no override.
 
-    1. Every CI gate must have passed for this model.
+    1. Every CI gate must have passed for this model, on these exact files.
     2. A final Z3 proof against the rules active now must succeed.
     3. The certificate is written once. A repeat of the same model and rules
        raises DuplicateCertificateError before anything is deployed.
     4. Lineage is recorded, then the canary runs with a shadow check, then promote.
     """
-    confirm_ci_passed(ci_reader, model_version)
-    submission = load_submission(model_version, base_dir)
+    raw = await asyncio.to_thread(fetch_bundle, model_version, source)
+    submission = parse_bundle(raw)
+    await asyncio.to_thread(
+        confirm_ci_passed, ci_reader, model_version, submission.bundle_hash
+    )
     rules = fetch_active_rules(graph)
     verification = verify_against_rules(rules, submission.weights, model_version)
     if not verification.compliant:
@@ -64,7 +68,7 @@ async def deploy_model(
         cert_store,
         secret,
         model_version=model_version,
-        bundle_digest=bundle_hash(model_version, base_dir),
+        bundle_digest=submission.bundle_hash,
         regulations=verification.regulations,
     )
     record_lineage(graph, model_version)

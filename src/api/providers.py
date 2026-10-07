@@ -7,6 +7,12 @@ through `app.dependency_overrides`.
 import os
 from pathlib import Path
 
+from src.lib.model_bundle import (
+    DEFAULT_BUCKET,
+    BundleSource,
+    LocalBundleSource,
+    SupabaseBundleSource,
+)
 from src.pipeline.cd.certificate import MIN_SECRET_BYTES, CertificateStore
 from src.pipeline.cd.deployer import Deployer
 from src.pipeline.cd.stores import CIEventReader
@@ -40,6 +46,22 @@ def get_event_store() -> PipelineEventStore:
     from src.pipeline.ci.event_store import SupabaseEventStore
 
     return SupabaseEventStore(supabase_client.client)
+
+
+def get_bundle_source() -> BundleSource:
+    """Where model bundles are read from. `supabase` (the production image's
+    default) uses a private Storage bucket; `local` reads a folder."""
+    mode = os.environ.get("MODEL_BUNDLE_STORE", "local")
+    if mode == "supabase":
+        from src.lib.supabase_client import supabase_client
+
+        return SupabaseBundleSource(
+            supabase_client.client,
+            os.environ.get("MODEL_BUNDLE_BUCKET", DEFAULT_BUCKET),
+        )
+    if mode != "local":
+        raise RuntimeError("MODEL_BUNDLE_STORE must be 'local' or 'supabase'.")
+    return LocalBundleSource(get_artifact_dir())
 
 
 def get_artifact_dir() -> Path:

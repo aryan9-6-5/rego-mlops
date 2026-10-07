@@ -15,6 +15,9 @@ import sys
 from pathlib import Path
 from typing import Any
 
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.append(str(ROOT))
+
 TRUTH = [1, 0, 1, 0, 1, 0, 1, 0]
 GROUPS = ["a", "a", "b", "b"] * 2
 
@@ -60,13 +63,34 @@ def write_bundles(out: Path) -> list[str]:
     return written
 
 
+def upload_bundles(out: Path, names: list[str]) -> None:
+    """Copy the bundles to the private Storage bucket the production API reads."""
+    from src.lib.model_bundle import DEFAULT_BUCKET, SupabaseBundleSource
+    from src.lib.supabase_client import supabase_client
+
+    source = SupabaseBundleSource(
+        supabase_client.client, os.environ.get("MODEL_BUNDLE_BUCKET", DEFAULT_BUCKET)
+    )
+    for name in names:
+        source.upload(name, out / name)
+        sys.stdout.write(f"uploaded {name}\n")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--out", default=os.environ.get("MODEL_ARTIFACT_DIR", "artifacts/models"))
+    parser.add_argument(
+        "--upload",
+        action="store_true",
+        help="also upload to the Supabase Storage bucket (needs SUPABASE_URL and SUPABASE_SERVICE_KEY)",
+    )
     args = parser.parse_args()
     out = Path(args.out)
-    for name in write_bundles(out):
+    names = write_bundles(out)
+    for name in names:
         sys.stdout.write(f"wrote {out / name}\n")
+    if args.upload:
+        upload_bundles(out, names)
     return 0
 
 

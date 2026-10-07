@@ -250,3 +250,31 @@ def test_training_rejects_unsafe_version(tmp_path: Path, bad: str) -> None:
 def test_training_needs_active_rules(tmp_path: Path) -> None:
     with pytest.raises(TrainerError):
         run_training(FakeGraph([]), FakeTrainer(), FakeTracker(), "v1", tmp_path)
+
+
+# ---- the trained bundle is kept where the API can read it ---------------------
+
+
+class FakeUploader:
+    def __init__(self) -> None:
+        self.uploaded: list[tuple[str, bool]] = []
+
+    def upload(self, name: str, directory: Path) -> None:
+        self.uploaded.append((name, (directory / "profile.json").exists()))
+
+
+def test_training_uploads_the_pulled_bundle_before_registering_it(tmp_path: Path) -> None:
+    uploader = FakeUploader()
+    run_training(
+        FakeGraph(RULE_ROWS), FakeTrainer(), FakeTracker(), "RBI-4.1-x", tmp_path, uploader
+    )
+    assert uploader.uploaded == [("ct-RBI-4.1-x", True)]
+
+
+def test_nothing_is_uploaded_when_training_produced_no_bundle(tmp_path: Path) -> None:
+    uploader = FakeUploader()
+    with pytest.raises(TrainerError):
+        run_training(
+            FakeGraph(RULE_ROWS), FakeTrainer(False), FakeTracker(), "v1", tmp_path, uploader
+        )
+    assert uploader.uploaded == []

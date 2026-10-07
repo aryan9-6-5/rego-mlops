@@ -6,7 +6,7 @@ This guide deploys one container that serves both the API and the built web app.
 
 | Item | Notes |
 |:---|:---|
-| Supabase project | Run `supabase/migrations/01` to `08` in order. Note the project URL, the anon key and the service key |
+| Supabase project | Run `supabase/migrations/01` to `09` in order. Migration 09 creates the private `model-bundles` bucket. Note the project URL, the anon key and the service key |
 | Neo4j instance | Neo4j Aura Free is enough. Note the connection URI (it starts with `neo4j+s://`), user and password |
 | OpenRouter API key | Used only to draft rules from regulatory text |
 | GitHub personal access token | Allowed to run workflows on this repository. Used by the manual training trigger |
@@ -41,6 +41,8 @@ Runtime:
 | `SUPABASE_URL`, `SUPABASE_SERVICE_KEY` | Supabase URL and the service key. The service key stays on the server |
 | `NEO4J_URI`, `NEO4J_USERNAME`, `NEO4J_PASSWORD` | From Neo4j Aura |
 | `OPENROUTER_API_KEY`, `LLM_DEFAULT_MODEL`, `LLM_FALLBACK_MODEL` | From `.env.example` |
+| `MODEL_BUNDLE_STORE` | `supabase`. This is already the default in the production image; set it explicitly to be sure |
+| `MODEL_BUNDLE_BUCKET` | Optional. Defaults to `model-bundles` |
 | `PROOF_CERT_SECRET` | The 32 byte or longer secret. The server refuses to answer certificate requests without it |
 | `GITHUB_TOKEN`, `GITHUB_REPOSITORY` | For the manual training trigger. Repository is `owner/name` |
 | `RAILWAY_API_TOKEN`, `RAILWAY_PROJECT_ID`, `RAILWAY_ENVIRONMENT_ID`, `RAILWAY_SERVICE_ID`, `RAILWAY_CANARY_SERVICE_ID` | For the deployer |
@@ -76,26 +78,32 @@ The same configuration can be run locally without Docker to check it before depl
 - The container filesystem is not persistent.
 - Memory is limited. Z3 and the API fit comfortably in the limit stated in `docs/CONSTRAINTS.md`.
 
-## 8. Open issue: how model files reach the API
+## 8. Model files
 
-The deploy and submit routes read a model folder (`profile.json` and `evaluation.json`) from `MODEL_ARTIFACT_DIR` on the API's own disk. On Railway that disk is not persistent, and a model produced by the training workflow in GitHub Actions is not on it. As built, a trained model cannot be deployed through the API in production.
+The API reads model bundles (`profile.json` and `evaluation.json`) from a private Supabase Storage bucket, `model-bundles`, because the container disk is not persistent and is not shared with the training workflow. The bucket is created by migration 09. It has no storage policies, so only the backend, using the service key, can read or write it. A browser never reaches it.
 
-Options, to be decided by the project owner:
+How bundles get there:
 
-1. Store bundles in Supabase Storage (free tier, 1 GB) and have the API read them from there. This needs a small change to the model file loader and a write step in `ct.yml`.
-2. Upload the bundle through the API from the training workflow before submitting.
-3. For a demonstration only, generate the demo bundles inside the running container with `scripts/make_demo_models.py`. They disappear when the container restarts.
+- The training workflow (`ct.yml`) uploads each bundle it produces, using the repository's Supabase secrets, before it runs the CI gates. It sets `MODEL_BUNDLE_STORE=supabase`.
+- For a demonstration, `poetry run python scripts/make_demo_models.py --upload` writes the sample bundles and uploads them. It needs `SUPABASE_URL` and `SUPABASE_SERVICE_KEY` in the environment.
+- Uploading a bundle under an existing name replaces it.
+
+Because storage can be written to, results are tied to the exact bytes they were about. Each CI result stores a SHA-256 hash of the files it checked. A deploy is refused unless every gate passed on the files in storage right now, and the certificate's proof hash also covers those bytes. If a bundle is replaced after its checks, run the checks again.
+
+Storage limits: each file is capped at 50 MB, and only JSON is accepted. If storage cannot be reached, the API answers 503 with a plain message. A bundle that does not exist is a 400.
+
+What this does not cover: the trained model file itself (`model.pkl`) is not uploaded. It stays in the MLflow artifacts of the training run. The API only needs the weights and the held-out predictions.
 
 ## 9. Not verified
 
 - The Railway GraphQL calls made by the deployer were written from Railway's public schema and have not been run against a real project.
 - Railway cannot split traffic by percentage, so the canary takes no live traffic.
 - Time to run one proof on the free tier has not been measured. Locally a single proof takes tens of milliseconds.
-- Supabase row level security (migration 08) and Realtime have not been run against a real project. Try each role through the Supabase REST API after applying the migrations.
+- Supabase Storage uploads and downloads (the code was tested against a stand-in for the Storage client, not a real bucket), row level security (migration 08) and Realtime have not been run against a real project. Try each role through the Supabase REST API after applying the migrations.
 
 ## 10. Checklist
 
-- [ ] Migrations 01 to 08 applied
+- [ ] Migrations 01 to 09 applied
 - [ ] Users and their `users` rows created
 - [ ] Railway variables set, with `ENVIRONMENT=production`
 - [ ] Main and canary services created
@@ -103,5 +111,5 @@ Options, to be decided by the project owner:
 - [ ] `/health/z3` reports Z3 4.12.6
 - [ ] Each role signs in and sees the right interface
 - [ ] GitHub secrets set for the training workflow
-- [ ] The model file transport (section 8) decided
+- [ ] The `model-bundles` bucket exists (migration 09) and a bundle was uploaded
 - [ ] Live address recorded in `README.md` and `docs/STATE.md`

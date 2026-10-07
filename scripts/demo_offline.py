@@ -31,7 +31,8 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 from src.api import providers  # noqa: E402
 from src.api.main import app  # noqa: E402
-from tests.integration.world import World, good_evaluation  # noqa: E402
+from src.lib.model_bundle import LocalBundleSource  # noqa: E402
+from tests.integration.world import World  # noqa: E402
 
 CO = {"Authorization": "Bearer co-token"}
 MLE = {"Authorization": "Bearer mle-token"}
@@ -97,7 +98,7 @@ def main() -> int:
                 providers.get_cert_store: lambda: world.certificates,
                 providers.get_deployer: lambda: world.deployer,
                 providers.get_cert_secret: lambda: SECRET,
-                providers.get_artifact_dir: lambda: world.artifact_dir,
+                providers.get_bundle_source: lambda: LocalBundleSource(world.artifact_dir),
             }
         )
         api = TestClient(app)

@@ -58,7 +58,7 @@ class SupabaseCIEventReader:
     def latest_gate_statuses(self, model_version: str) -> dict[str, str]:
         data: Any = (
             self._client.table(PIPELINE_EVENTS)
-            .select("gate_name,status,created_at")
+            .select("gate_name,status,bundle_hash,created_at")
             .eq("stage", "ci")
             .eq("model_version", model_version)
             .order("created_at", desc=True)
@@ -70,13 +70,34 @@ class SupabaseCIEventReader:
             latest.setdefault(row["gate_name"], row["status"])
         return latest
 
+    def latest_bundle_hashes(self, model_version: str) -> dict[str, str | None]:
+        data: Any = (
+            self._client.table(PIPELINE_EVENTS)
+            .select("gate_name,bundle_hash,created_at")
+            .eq("stage", "ci")
+            .eq("model_version", model_version)
+            .order("created_at", desc=True)
+            .execute()
+            .data
+        )
+        latest: dict[str, str | None] = {}
+        for row in data:
+            latest.setdefault(row["gate_name"], row.get("bundle_hash"))
+        return latest
+
 
 class CIEventReader(Protocol):
     def latest_gate_statuses(self, model_version: str) -> dict[str, str]: ...
+    def latest_bundle_hashes(self, model_version: str) -> dict[str, str | None]: ...
 
 
-def confirm_ci_passed(reader: CIEventReader, model_version: str) -> None:
-    """Every CI gate's latest result for this model must be compliant."""
+def confirm_ci_passed(
+    reader: CIEventReader, model_version: str, bundle_hash: str
+) -> None:
+    """Every CI gate's latest result for this model must be compliant, and each
+    must have been run on the exact files being deployed. Model files live in
+    storage someone with access could change, so a pass on old files does not
+    carry over to new ones."""
     statuses = reader.latest_gate_statuses(model_version)
     missing_or_failed = [
         gate.value for gate in GateName if statuses.get(gate.value) != "compliant"
@@ -86,4 +107,9 @@ def confirm_ci_passed(reader: CIEventReader, model_version: str) -> None:
             "The model has not passed every CI gate: "
             + ", ".join(missing_or_failed)
             + "."
+        )
+    hashes = reader.latest_bundle_hashes(model_version)
+    if any(hashes.get(gate.value) != bundle_hash for gate in GateName):
+        raise CINotConfirmedError(
+            "The model files changed after the checks ran. Run the checks again."
         )

@@ -29,5 +29,6 @@ class SupabaseEventStore:
                 "rule_ids": event.rule_ids,
                 "duration_ms": int(event.duration_ms),
                 "plain_english_result": event.plain_english,
+                "bundle_hash": event.bundle_hash,
             }
         ).execute()

@@ -115,7 +115,7 @@ You need Python 3.11 or newer, Node 20, Poetry 2, Docker (for Neo4j), a Supabase
 
    Fill in the values. Use the same `NEO4J_PASSWORD` for the Neo4j container and the backend (it defaults to `password` for local use). `PROOF_CERT_SECRET` must be at least 32 random bytes, for example the output of `python -c "import secrets; print(secrets.token_urlsafe(48))"`. The Supabase service key stays on the server and must never be placed in a `VITE_` variable.
 
-2. Create the database. Run the files in `supabase/migrations/` in order, 01 to 08, in the Supabase SQL editor or with the Supabase CLI. Migration 08 tightens row level security and makes certificates append-only.
+2. Create the database. Run the files in `supabase/migrations/` in order, 01 to 09, in the Supabase SQL editor or with the Supabase CLI. Migration 08 tightens row level security and makes certificates append-only. Migration 09 creates the private Storage bucket that holds model files and records which files each CI result was about.
 
 3. Start Neo4j and the backend.
 
@@ -164,7 +164,7 @@ A rule the validator rejects appears under Could not be verified with a plain-En
 
 ## Submitting a model
 
-A model is submitted as a folder inside `MODEL_ARTIFACT_DIR` containing two files.
+A model is a folder of two files, called a bundle. Locally the folder sits inside `MODEL_ARTIFACT_DIR`. In production bundles are kept in a private Supabase Storage bucket, `model-bundles`, as `<model name>/profile.json` and `<model name>/evaluation.json`. `MODEL_BUNDLE_STORE` selects `local` (the default for development) or `supabase` (the default in the production image).
 
 `profile.json` lists the weight of each feature, named `<feature>_weight`:
 
@@ -180,7 +180,11 @@ A feature that is not listed counts as weight zero.
 {"y_true": [1, 0], "y_pred": [1, 0], "baseline_y_pred": [1, 0], "groups": ["a", "b"]}
 ```
 
-As an ML engineer, open Pipeline Monitor, enter the folder name, and choose Run compliance gates. When all four gates are compliant, a Deploy button appears.
+To put bundles in storage, run `poetry run python scripts/make_demo_models.py --upload` for the sample bundles. Bundles produced by the training workflow are uploaded automatically. Uploading a bundle again replaces it.
+
+As an ML engineer, open Pipeline Monitor, enter the bundle name, and choose Run compliance gates. When all four gates are compliant, a Deploy button appears.
+
+Each CI result records a SHA-256 hash of the exact files it checked. A deploy is refused unless every gate passed on the files being deployed, so replacing a bundle after it passed means the checks must run again.
 
 ## Proof certificates
 
@@ -226,7 +230,7 @@ All routes are under `/api`, except the health checks, which are also at `/healt
 - Every route requires a login except the health checks and certificate verification. A missing or invalid token is always the same 401 with no detail.
 - Roles are enforced in the API, not only in the interface. A test lists every route with its allowed roles and fails if a route is added without an entry.
 - Regulatory text is stripped of HTML and control characters and limited to 50,000 characters before it can reach the LLM.
-- The service key never leaves the backend. Row level security gives anonymous users no access and signed-in users read-only access.
+- The service key never leaves the backend. Row level security gives anonymous users no access and signed-in users read-only access. The model file bucket is private with no policies, so only the backend can read or write it.
 - The compliance officer interface never shows rule identifiers, proof hashes or solver output.
 
 ## Project structure

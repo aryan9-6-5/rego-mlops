@@ -63,3 +63,12 @@ def test_the_certificates_table_has_no_updated_at_column() -> None:
     code = re.sub(r"--[^\n]*", "", sql)  # comments may mention the word
     create = code[code.index("CREATE TABLE") : code.index(");")]
     assert "updated_at" not in create
+
+
+def test_model_bundles_live_in_a_private_bucket_with_no_storage_policy() -> None:
+    sql = (MIGRATIONS / "09_model_bundle_storage.sql").read_text(encoding="utf-8")
+    code = re.sub(r"--[^\n]*", "", sql)
+    assert "'model-bundles', 'model-bundles', false" in code
+    assert "public = false" in code
+    assert "CREATE POLICY" not in code  # only the service key can reach it
+    assert "ALTER TABLE pipeline_events ADD COLUMN IF NOT EXISTS bundle_hash" in code

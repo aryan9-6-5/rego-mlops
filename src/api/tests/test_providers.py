@@ -83,3 +83,33 @@ def test_a_missing_or_short_certificate_secret_stops_the_server_answering(
 def test_a_long_enough_certificate_secret_is_returned(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("PROOF_CERT_SECRET", "x" * 32)
     assert providers.get_cert_secret() == "x" * 32
+
+
+def test_bundles_come_from_the_local_folder_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    from src.lib.model_bundle import LocalBundleSource
+
+    monkeypatch.delenv("MODEL_BUNDLE_STORE", raising=False)
+    assert isinstance(providers.get_bundle_source(), LocalBundleSource)
+
+
+def test_bundles_come_from_the_supabase_bucket_when_asked(
+    clients: FakeClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from src.lib.model_bundle import SupabaseBundleSource
+
+    monkeypatch.setenv("MODEL_BUNDLE_STORE", "supabase")
+    monkeypatch.setenv("MODEL_BUNDLE_BUCKET", "custom-bucket")
+    source = providers.get_bundle_source()
+    assert isinstance(source, SupabaseBundleSource)
+    assert source._bucket == "custom-bucket"
+
+
+def test_an_unknown_bundle_store_is_a_configuration_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("MODEL_BUNDLE_STORE", "s3")
+    with pytest.raises(RuntimeError, match="MODEL_BUNDLE_STORE"):
+        providers.get_bundle_source()
+
+
+def test_the_production_image_defaults_to_supabase_storage() -> None:
+    dockerfile = (Path(__file__).resolve().parents[3] / "Dockerfile").read_text(encoding="utf-8")
+    assert "MODEL_BUNDLE_STORE=supabase" in dockerfile

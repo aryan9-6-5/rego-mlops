@@ -18,6 +18,7 @@ from src.api.routes import (
     regulations,
 )
 from src.api.spa import mount_frontend
+from src.lib.model_bundle import BundleStorageError
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +45,17 @@ async def graph_unavailable(request: Request, exc: Exception) -> JSONResponse:
     driver's error text, which can name internal hosts."""
     logger.error("Neo4j unavailable error=%s", type(exc).__name__)
     return JSONResponse(status_code=503, content={"detail": GRAPH_UNAVAILABLE})
+
+
+STORAGE_UNAVAILABLE = (
+    "Model file storage is temporarily unavailable. Please try again shortly."
+)
+
+
+@app.exception_handler(BundleStorageError)
+async def storage_unavailable(request: Request, exc: Exception) -> JSONResponse:
+    logger.error("Model file storage unavailable")
+    return JSONResponse(status_code=503, content={"detail": STORAGE_UNAVAILABLE})
 
 
 # CORS Middleware

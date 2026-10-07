@@ -45,6 +45,8 @@ class GateEvent(GateResult):
 
     model_version: str
     timestamp: str
+    # SHA-256 of the exact model files this result is about.
+    bundle_hash: str | None = None
 
 
 class PipelineRun(BaseModel):

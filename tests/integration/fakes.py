@@ -131,6 +131,9 @@ class FakeCIReader:
     def latest_gate_statuses(self, model_version: str) -> dict[str, str]:
         return {}
 
+    def latest_bundle_hashes(self, model_version: str) -> dict[str, str | None]:
+        return {}
+
 
 class FakeDeployer:
     async def deploy_canary(self, model_version: str, percent: int) -> None:

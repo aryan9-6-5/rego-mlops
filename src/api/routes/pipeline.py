@@ -1,4 +1,4 @@
-from pathlib import Path
+import asyncio
 from typing import Annotated, Any
 
 from fastapi import (
@@ -13,7 +13,7 @@ from fastapi.security import HTTPAuthorizationCredentials
 
 from src.api.dependencies import get_current_user, require_role
 from src.api.providers import (
-    get_artifact_dir,
+    get_bundle_source,
     get_cert_secret,
     get_cert_store,
     get_ci_reader,
@@ -30,7 +30,7 @@ from src.api.schemas.pipeline import (
     TriggerCTRequest,
     TriggerCTResponse,
 )
-from src.lib.model_bundle import SubmissionError
+from src.lib.model_bundle import BundleSource, SubmissionError
 from src.lib.regulation_graph import GraphClient, recent_regulation_versions
 from src.pipeline.cd import service as cd_service
 from src.pipeline.cd.certificate import CertificateStore, DuplicateCertificateError
@@ -55,12 +55,14 @@ async def submit_model(
     background: BackgroundTasks,
     graph: Annotated[GraphClient, Depends(get_graph)],
     store: Annotated[PipelineEventStore, Depends(get_event_store)],
-    base_dir: Annotated[Path, Depends(get_artifact_dir)],
+    source: Annotated[BundleSource, Depends(get_bundle_source)],
     _user: Annotated[dict[str, Any], MLE_ONLY],
 ) -> Any:
     """Run the CI gates against a model bundle."""
     try:
-        submission = service.prepare_submission(_registry, body.artifact_path, base_dir)
+        submission = await asyncio.to_thread(
+            service.prepare_submission, _registry, body.artifact_path, source
+        )
     except SubmissionError as e:
         raise HTTPException(status_code=400, detail=str(e))
     background.add_task(service.run_submission, _registry, store, graph, submission)
@@ -90,7 +92,7 @@ async def deploy_model(
     cert_store: Annotated[CertificateStore, Depends(get_cert_store)],
     ci_reader: Annotated[CIEventReader, Depends(get_ci_reader)],
     deployer: Annotated[Deployer, Depends(get_deployer)],
-    base_dir: Annotated[Path, Depends(get_artifact_dir)],
+    source: Annotated[BundleSource, Depends(get_bundle_source)],
     secret: Annotated[str, Depends(get_cert_secret)],
     _user: Annotated[dict[str, Any], MLE_ONLY],
 ) -> Any:
@@ -98,7 +100,7 @@ async def deploy_model(
     try:
         outcome = await cd_service.deploy_model(
             model_version=body.model_version,
-            base_dir=base_dir,
+            source=source,
             graph=graph,
             cert_store=cert_store,
             ci_reader=ci_reader,

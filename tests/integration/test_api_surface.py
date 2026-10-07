@@ -75,7 +75,8 @@ def test_a_regulation_that_changes_during_the_canary_blocks_promotion(
 def test_deploying_a_model_that_does_not_exist_is_refused(api: TestClient, world: World) -> None:
     activate_rule(api)
     response = deploy(api, "ghost")
-    assert response.status_code == 409  # CI cannot have passed for a model nobody checked
+    assert response.status_code == 400  # there are no files to check or deploy
+    assert "not found" in response.json()["detail"]
     assert world.certificates.rows == {}
 
 
@@ -178,3 +179,38 @@ def test_the_health_check_does_not_depend_on_the_graph(api: TestClient, world: W
 
     world.graph.error = ServiceUnavailable("down")
     assert api.get("/health/").status_code == 200
+
+
+# ---- model file storage ------------------------------------------------------------
+
+
+class DownBundles:
+    """A bundle source whose storage is unreachable."""
+
+    def read(self, name: str, filename: str) -> bytes | None:
+        from src.lib.model_bundle import BundleStorageError
+
+        raise BundleStorageError("storage.internal-host refused the connection")
+
+
+@pytest.mark.parametrize(
+    ("method", "path", "body"),
+    [
+        ("POST", "/api/pipeline/submit", {"artifact_path": "m1"}),
+        ("POST", "/api/pipeline/deploy", {"model_version": "m1"}),
+        ("GET", "/api/models/diff?from_version=a&to_version=b", None),
+    ],
+)
+def test_a_storage_outage_is_503_with_a_plain_message_and_no_internals(
+    api: TestClient, method: str, path: str, body: dict[str, str] | None
+) -> None:
+    from src.api import providers
+    from src.api.main import app
+
+    app.dependency_overrides[providers.get_bundle_source] = DownBundles
+    response = api.request(method, path, headers=MLE_HEADERS, json=body)
+    assert response.status_code == 503
+    assert response.json() == {
+        "detail": "Model file storage is temporarily unavailable. Please try again shortly."
+    }
+    assert "internal-host" not in response.text

@@ -23,6 +23,7 @@ from src.api import (
     rate_limit,  # noqa: E402
 )
 from src.api.main import app  # noqa: E402
+from src.lib.model_bundle import LocalBundleSource  # noqa: E402
 
 SECRET = "integration-test-secret-" + "x" * 32
 
@@ -39,7 +40,7 @@ def client(tmp_path: Path) -> Iterator[TestClient]:
         providers.get_ci_reader: fakes.FakeCIReader,
         providers.get_deployer: fakes.FakeDeployer,
         providers.get_cert_secret: lambda: SECRET,
-        providers.get_artifact_dir: lambda: tmp_path,
+        providers.get_bundle_source: lambda: LocalBundleSource(tmp_path),
     }
     app.dependency_overrides.update(overrides)
     rate_limit.regulation_limiter.reset()
@@ -81,7 +82,7 @@ def api(world: World) -> Iterator[TestClient]:
             providers.get_cert_store: lambda: world.certificates,
             providers.get_deployer: lambda: world.deployer,
             providers.get_cert_secret: lambda: SECRET,
-            providers.get_artifact_dir: lambda: world.artifact_dir,
+            providers.get_bundle_source: lambda: LocalBundleSource(world.artifact_dir),
         }
     )
     pipeline_routes._registry = RunRegistry()

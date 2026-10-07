@@ -32,6 +32,10 @@ class ModelTracker(Protocol):
     ) -> str: ...
 
 
+class BundleUploader(Protocol):
+    def upload(self, name: str, directory: Path) -> None: ...
+
+
 class Trainer(Protocol):
     def push_notebook(self, config: dict[str, object]) -> None: ...
     def poll_until_complete(self) -> None: ...
@@ -52,6 +56,7 @@ def run_training(
     tracker: ModelTracker,
     regulation_version: str,
     artifact_root: Path,
+    uploader: BundleUploader | None = None,
 ) -> TrainingOutcome:
     """Retrain for a regulation version and register the result in MLflow.
 
@@ -74,6 +79,9 @@ def run_training(
     trainer.pull_output(artifact_dir)
     if not (artifact_dir / "profile.json").exists():
         raise TrainerError("Training finished but produced no profile.json.")
+    if uploader is not None:
+        # Keep the bundle where the API can read it (the API has no shared disk).
+        uploader.upload(model_version, artifact_dir)
 
     run_id = tracker.log_run(
         model_version=model_version,
@@ -101,12 +109,22 @@ def main() -> None:
     from src.lib.neo4j_client import neo4j_client
 
     root = Path(os.environ.get("MODEL_ARTIFACT_DIR", "artifacts/models"))
+    uploader: BundleUploader | None = None
+    if os.environ.get("MODEL_BUNDLE_STORE") == "supabase":
+        from src.lib.model_bundle import DEFAULT_BUCKET, SupabaseBundleSource
+        from src.lib.supabase_client import supabase_client
+
+        uploader = SupabaseBundleSource(
+            supabase_client.client,
+            os.environ.get("MODEL_BUNDLE_BUCKET", DEFAULT_BUCKET),
+        )
     outcome = run_training(
         neo4j_client,
         KaggleRunner(Path("notebooks/ct_retrain.ipynb")),
         MlflowTracker(),
         args.regulation_version,
         root,
+        uploader,
     )
     if args.detected_at:
         mark_checked(neo4j_client, args.detected_at)

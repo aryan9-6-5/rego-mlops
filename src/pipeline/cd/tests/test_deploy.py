@@ -5,6 +5,7 @@ from typing import Any
 import httpx
 import pytest
 
+from src.lib.model_bundle import bundle_hash
 from src.lib.regulation_graph import ActiveRule
 from src.pipeline.cd.canary import run_canary
 from src.pipeline.cd.certificate import DuplicateCertificateError
@@ -62,11 +63,17 @@ class FakeGraph:
 
 
 class FakeReader:
-    def __init__(self, statuses: dict[str, str]) -> None:
+    """CI results. `bundle_hash` is the hash every gate ran on (None = not recorded)."""
+
+    def __init__(self, statuses: dict[str, str], bundle_hash: str | None = "h") -> None:
         self.statuses = statuses
+        self.bundle_hash = bundle_hash
 
     def latest_gate_statuses(self, model_version: str) -> dict[str, str]:
         return self.statuses
+
+    def latest_bundle_hashes(self, model_version: str) -> dict[str, str | None]:
+        return dict.fromkeys(self.statuses, self.bundle_hash)
 
 
 class FakeDeployer:
@@ -101,13 +108,20 @@ async def run_deploy(
     store: MemoryStore,
     deployer: FakeDeployer,
     statuses: dict[str, str] | None = None,
+    checked_hash: str | None = None,
 ) -> Any:
+    """Deploy m1. CI is taken to have run on the bundle as it is now, unless
+    `checked_hash` says otherwise."""
+    current = bundle_hash("m1", base) if (base / "m1").exists() else "h"
     return await deploy_model(
         model_version="m1",
-        base_dir=base,
+        source=base,
         graph=graph,
         cert_store=store,
-        ci_reader=FakeReader(ALL_PASS if statuses is None else statuses),
+        ci_reader=FakeReader(
+            ALL_PASS if statuses is None else statuses,
+            checked_hash if checked_hash is not None else current,
+        ),
         deployer=deployer,
         secret=SECRET,
     )
@@ -117,7 +131,7 @@ async def run_deploy(
 
 
 def test_ci_confirmed_when_every_gate_is_compliant() -> None:
-    confirm_ci_passed(FakeReader(ALL_PASS), "m1")
+    confirm_ci_passed(FakeReader(ALL_PASS), "m1", "h")
 
 
 @pytest.mark.parametrize(
@@ -132,7 +146,7 @@ def test_ci_not_confirmed_when_a_gate_failed_or_is_missing(
     statuses: dict[str, str],
 ) -> None:
     with pytest.raises(CINotConfirmedError):
-        confirm_ci_passed(FakeReader(statuses), "m1")
+        confirm_ci_passed(FakeReader(statuses), "m1", "h")
 
 
 # ---- final verification ---------------------------------------------------
@@ -310,3 +324,29 @@ def test_railway_requires_configuration(monkeypatch: pytest.MonkeyPatch) -> None
     monkeypatch.delenv("RAILWAY_API_TOKEN", raising=False)
     with pytest.raises(DeployError):
         RailwayDeployer()
+
+
+# ---- the checks must be about the files being deployed -----------------------
+
+
+def test_ci_is_not_confirmed_when_the_files_changed_after_the_checks() -> None:
+    with pytest.raises(CINotConfirmedError, match="changed after the checks"):
+        confirm_ci_passed(FakeReader(ALL_PASS, "old-hash"), "m1", "new-hash")
+
+
+def test_ci_is_not_confirmed_for_results_recorded_without_a_hash() -> None:
+    with pytest.raises(CINotConfirmedError, match="changed after the checks"):
+        confirm_ci_passed(FakeReader(ALL_PASS, None), "m1", "h")
+
+
+@pytest.mark.asyncio
+async def test_deploy_is_refused_when_the_bundle_was_replaced_after_ci(
+    tmp_path: Path,
+) -> None:
+    make_bundle(tmp_path, {"pin_code_weight": 0.0})
+    store, deployer = MemoryStore(), FakeDeployer()
+    with pytest.raises(CINotConfirmedError):
+        await run_deploy(
+            tmp_path, FakeGraph([NO_PIN]), store, deployer, checked_hash="hash-of-the-old-files"
+        )
+    assert store.rows == {} and deployer.calls == []

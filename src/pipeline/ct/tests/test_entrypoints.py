@@ -128,3 +128,44 @@ def test_a_failed_training_run_does_not_mark_drift_as_handled(
     with pytest.raises(RuntimeError):
         trainer.main()
     assert not [p for _q, p in graph.calls if "checked_up_to" in p]
+
+
+def test_the_training_step_uploads_to_supabase_storage_when_configured(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from src.lib.tests.fake_supabase import FakeClient
+
+    class Bucket:
+        def __init__(self, log: list[str]) -> None:
+            self.log = log
+
+        def upload(self, path: str, data: bytes, options: dict[str, str]) -> None:
+            self.log.append(path)
+
+    class Storage:
+        def __init__(self) -> None:
+            self.log: list[str] = []
+
+        def from_(self, bucket: str) -> Bucket:
+            self.log.append(f"bucket:{bucket}")
+            return Bucket(self.log)
+
+    storage = Storage()
+    db = FakeClient()
+    db.storage = storage  # type: ignore[attr-defined]
+    supabase_module = types.ModuleType("src.lib.supabase_client")
+    supabase_module.supabase_client = types.SimpleNamespace(client=db)  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "src.lib.supabase_client", supabase_module)
+    install(monkeypatch, Graph([RULE_ROW]))
+    tracker_module = types.ModuleType("src.lib.mlflow_client")
+    tracker_module.MlflowTracker = FakeTracker  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "src.lib.mlflow_client", tracker_module)
+    monkeypatch.setattr(trainer, "KaggleRunner", FakeKaggle)
+    monkeypatch.setenv("MODEL_ARTIFACT_DIR", str(tmp_path))
+    monkeypatch.setenv("MODEL_BUNDLE_STORE", "supabase")
+    monkeypatch.setenv("MODEL_BUNDLE_BUCKET", "bundles-x")
+    monkeypatch.delenv("GITHUB_OUTPUT", raising=False)
+    monkeypatch.setattr(sys, "argv", ["trainer", "--regulation-version", "RBI-4.1-x"])
+    trainer.main()
+    assert "bucket:bundles-x" in storage.log
+    assert "ct-RBI-4.1-x/profile.json" in storage.log

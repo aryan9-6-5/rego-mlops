@@ -1,3 +1,5 @@
+from typing import Any
+
 import pytest
 
 from src.lib.tests.fake_supabase import FakeClient
@@ -62,3 +64,15 @@ def test_the_latest_result_per_gate_wins() -> None:
     assert latest == {"symbolic_check": "violation", "regression": "compliant"}
     assert ("stage", "ci") in client.last.called("eq")
     assert ("model_version", "v1") in client.last.called("eq")
+
+
+def test_the_latest_bundle_hash_per_gate_wins_and_old_rows_without_one_are_none() -> None:
+    rows: list[dict[str, Any]] = [  # newest first
+        {"gate_name": "symbolic_check", "bundle_hash": "new"},
+        {"gate_name": "regression", "bundle_hash": None},
+        {"gate_name": "symbolic_check", "bundle_hash": "old"},
+    ]
+    client = FakeClient(rows)
+    hashes = SupabaseCIEventReader(client).latest_bundle_hashes("v1")
+    assert hashes == {"symbolic_check": "new", "regression": None}
+    assert ("stage", "ci") in client.last.called("eq")

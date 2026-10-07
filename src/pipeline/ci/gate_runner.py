@@ -27,6 +27,7 @@ def _event(
         status=status,
         model_version=submission.model_version,
         timestamp=datetime.now(timezone.utc).isoformat(),
+        bundle_hash=submission.bundle_hash or None,
         **fields,  # type: ignore[arg-type]
     )
 

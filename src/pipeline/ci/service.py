@@ -3,7 +3,7 @@ import logging
 from pathlib import Path
 
 from src.api.schemas.pipeline import GateEvent, GateStatus
-from src.lib.model_bundle import Submission, load_submission
+from src.lib.model_bundle import BundleSource, Submission, load_submission
 from src.lib.regulation_graph import GraphClient, fetch_active_rules
 from src.pipeline.ci.event_store import PipelineEventStore
 from src.pipeline.ci.gate_runner import fail_run, run_gates
@@ -15,10 +15,10 @@ FINISHED = {GateStatus.COMPLIANT, GateStatus.VIOLATION}
 
 
 def prepare_submission(
-    registry: RunRegistry, artifact_path: str, base_dir: Path
+    registry: RunRegistry, artifact_path: str, source: "Path | BundleSource"
 ) -> Submission:
     """Validate the bundle and open a new run. Raises SubmissionError."""
-    submission = load_submission(artifact_path, base_dir)
+    submission = load_submission(artifact_path, source)
     registry.begin(submission.model_version)
     return submission
 
